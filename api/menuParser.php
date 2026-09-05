@@ -17,6 +17,7 @@ limitations under the License.
 
 include_once "SodexoParser.php";
 include_once "BonAppetitParser.php";
+include_once "BonAppetitWebParser.php";
 include_once "PomonaParser.php";
 include_once "PomonaJSONParser.php";
 include_once "DatabaseMenuParser.php";
@@ -38,6 +39,9 @@ function run($action){
     $startDate = date('m/d/Y', $startTime);
     $startDateBonAppetit = date('Y-m-d', $startTime);
     $diningHall = strtolower(param("diningHall"));
+    if($diningHall == "mallot" || $diningHall == "mallott"){
+        $diningHall = "malott";
+    }
     $parser = null;
 
     $allowCheckDatabase = strtolower(param("source")) != "sodexo";
@@ -64,15 +68,24 @@ function run($action){
             $parser = new SodexoParser("hoch", "https://menus.sodexomyway.com/BiteMenu/MenuOnly?menuId=15258&locationId=13147001&startdate=$startDate", param("developer") === "true");
             break;
         case "malott":
-            $parser = new BonAppetitParser("https://legacy.cafebonappetit.com/api/2/menus?format=json&cafe=2253&date=$startDateBonAppetit", "2253", "mallott");
+            $parser = new BonAppetitWebParser("malott", array(
+                "https://malottcommons.cafebonappetit.com/",
+                "https://www.scrippscollege.edu/dining"
+            ), $startTime);
             //old menuid 288
             //11082
             break;
         case "mcconnel":
-            $parser = new BonAppetitParser("https://legacy.cafebonappetit.com/api/2/menus?format=json&cafe=219&date=$startDateBonAppetit", "219", "mcconnel");
+            $parser = new BonAppetitWebParser("mcconnel", array(
+                "https://pitzer.cafebonappetit.com/cafe/mcconnell/",
+                "https://www.pitzer.edu/student-life/living-pitzer/dining"
+            ), $startTime);
             break;
         case "collins":
-            $parser = new BonAppetitParser("https://legacy.cafebonappetit.com/api/2/menus?format=json&cafe=50&date=$startDateBonAppetit", "50", "collins");
+            $parser = new BonAppetitWebParser("collins", array(
+                "https://collins-cmc.cafebonappetit.com/cafe/collins/",
+                "https://www.cmc.edu/student-life/residential-life/dining"
+            ), $startTime);
             break;
         case "frank":
             $parser = new PomonaParser("https://www.pomona.edu/administration/dining/menus/frank", "frank", $startTime);
