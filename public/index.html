@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Local end-to-end checker for the 5C Menu API.">
+    <title>5C Menu local checker</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <header class="site-header">
+        <a class="brand" href="/" aria-label="5C Menu checker home">
+            <span class="brand-mark">5C</span>
+            <span>Menu checker</span>
+        </a>
+        <div class="run-state" id="run-state" aria-live="polite">
+            <span class="state-dot"></span>
+            <span>Waiting to run</span>
+        </div>
+    </header>
+
+    <main>
+        <section class="hero">
+            <div>
+                <p class="eyebrow">Local API verification</p>
+                <h1>Every dining hall,<br>one honest status page.</h1>
+                <p class="intro">This page calls the local PHP API and renders the response it actually receives. Empty menus, malformed payloads, and request errors stay visible.</p>
+            </div>
+
+            <form class="controls" id="controls">
+                <label>
+                    Menu date
+                    <input id="menu-date" name="date" type="date" required>
+                </label>
+                <label>
+                    API endpoint
+                    <input id="api-endpoint" name="endpoint" type="text" value="/api/menu.php" spellcheck="false" required>
+                </label>
+                <button type="submit">Fetch every menu</button>
+            </form>
+        </section>
+
+        <section class="summary" aria-label="Run summary">
+            <div><strong id="passing-count">0</strong><span>responses verified</span></div>
+            <div><strong id="meal-count">0</strong><span>meals</span></div>
+            <div><strong id="item-count">0</strong><span>menu items</span></div>
+            <div><strong id="elapsed-time">0.0s</strong><span>elapsed</span></div>
+        </section>
+
+        <section>
+            <div class="section-heading">
+                <div>
+                    <p class="eyebrow">Live responses</p>
+                    <h2>Dining halls</h2>
+                </div>
+                <p id="last-run">Not run yet</p>
+            </div>
+            <div class="hall-grid" id="hall-grid"></div>
+        </section>
+    </main>
+
+    <template id="hall-template">
+        <article class="hall-card is-loading">
+            <header class="hall-card-header">
+                <div>
+                    <p class="college-name"></p>
+                    <h3 class="hall-name"></h3>
+                </div>
+                <span class="status-pill">Queued</span>
+            </header>
+            <div class="hall-meta">
+                <span class="meta-count">0 meals · 0 items</span>
+                <span class="meta-source"></span>
+            </div>
+            <div class="hall-message">Waiting for request…</div>
+            <div class="meals"></div>
+        </article>
+    </template>
+
+    <script type="module" src="/app.js"></script>
+</body>
+</html>
