@@ -30,18 +30,19 @@ class BonAppetitWebParser implements DiningHallParser{
     function __construct($hall, $sourceURLs, $startTime){
         $this->hall = strtolower($hall);
         $this->sourceURLs = $sourceURLs;
-        $this->startTime = round($startTime);
+        $this->startTime = $startTime ? round($startTime) : time();
     }
 
     function fetch(){
         $dateString = date("Y-m-d", $this->startTime);
         $defaultInfo = $this->buildInfo($dateString, array());
 
-        foreach($this->sourceURLs as $sourceURL){
+        foreach($this->sourceURLs as $sourceURLTemplate){
+            $sourceURL = str_replace("{date}", $dateString, $sourceURLTemplate);
             $contents = $this->fetchURL($sourceURL);
             if($contents == null || strlen($contents) < 1){continue;}
 
-            $candidateURLs = $this->extractCandidateURLs($contents, $sourceURL);
+            $candidateURLs = $this->extractCandidateURLs($contents, $sourceURL, $dateString);
             array_unshift($candidateURLs, $sourceURL);
             $candidateURLs = array_values(array_unique($candidateURLs));
 
@@ -69,6 +70,9 @@ class BonAppetitWebParser implements DiningHallParser{
         $this->sourceUsed = null;
         error_log("BonAppetitWebParser[$this->hall] mode=empty source=none");
         $this->info = $defaultInfo;
+        if(isset($_GET["developer"]) && $_GET["developer"] === "true"){
+            $this->info["debug"] = array("mode" => "empty", "source" => null);
+        }
     }
 
     function getInfo(){
@@ -84,20 +88,22 @@ class BonAppetitWebParser implements DiningHallParser{
             "Accept: */*",
             "Accept-Language: en-us"
         ]);
+        curl_setopt($ch, CURLOPT_ENCODING, "");
         curl_setopt($ch, CURLOPT_USERAGENT, "Mozilla/5.0");
         curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
         curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 30);
         curl_setopt($ch, CURLOPT_TIMEOUT, 45);
         curl_setopt($ch, CURLOPT_BUFFERSIZE, 128000);
         $raw = curl_exec($ch);
+        $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
-        return $raw;
+        return $raw !== false && $status >= 200 && $status < 400 ? $raw : null;
     }
 
-    private function extractCandidateURLs($html, $baseURL){
+    private function extractCandidateURLs($html, $baseURL, $dateString){
         $candidates = array();
 
-        if(!preg_match_all('/(?:href|src|data-url|data-menu-url|data-href)\s*=\s*["\']([^"\']+)["\']/i', $html, $matches)){
+        if(!preg_match_all('/(?:href|data-menu-url|data-href)\s*=\s*["\']([^"\']+)["\']/i', $html, $matches)){
             return $candidates;
         }
 
@@ -114,10 +120,29 @@ class BonAppetitWebParser implements DiningHallParser{
 
             $resolved = $this->resolveURL($baseURL, $href);
             if($resolved == null){continue;}
+            $parts = parse_url($resolved);
+            $path = isset($parts["path"]) ? $parts["path"] : "";
+            if(preg_match('/\.(?:css|js|jpe?g|png|gif|svg|webp|woff2?|ico)(?:$|\?)/i', $path)){continue;}
+
+            if(isset($parts["host"]) && preg_match('/(^|\.)cafebonappetit\.com$/i', $parts["host"])){
+                $resolved = $this->addDateToCafeURL($resolved, $dateString);
+            }
             $candidates[] = $resolved;
         }
 
         return array_values(array_unique($candidates));
+    }
+
+    private function addDateToCafeURL($url, $dateString){
+        $parts = parse_url($url);
+        if(!isset($parts["path"]) || !preg_match('#^(/cafe/[^/]+/)(?:\d{4}-\d{2}-\d{2}/?)?$#', $parts["path"], $matches)){
+            return $url;
+        }
+
+        $result = $parts["scheme"] . "://" . $parts["host"];
+        if(isset($parts["port"])){$result .= ":" . $parts["port"];}
+        $result .= $matches[1] . $dateString . "/";
+        return $result;
     }
 
     private function resolveURL($baseURL, $target){
@@ -143,20 +168,29 @@ class BonAppetitWebParser implements DiningHallParser{
     private function extractMeals($html, $dateString, &$mode){
         $meals = $this->extractBamcoMeals($html, $dateString);
         if(count($meals) > 0){
-            $mode = "bamco";
-            return $this->normalizeMeals($meals, $dateString);
+            $normalized = $this->normalizeMeals($meals, $dateString);
+            if(count($normalized) > 0){
+                $mode = "bamco";
+                return $normalized;
+            }
         }
 
         $meals = $this->extractJSONStateMeals($html, $dateString);
         if(count($meals) > 0){
-            $mode = "json-state";
-            return $this->normalizeMeals($meals, $dateString);
+            $normalized = $this->normalizeMeals($meals, $dateString);
+            if(count($normalized) > 0){
+                $mode = "json-state";
+                return $normalized;
+            }
         }
 
         $meals = $this->extractDOMMeals($html, $dateString);
         if(count($meals) > 0){
-            $mode = "dom";
-            return $this->normalizeMeals($meals, $dateString);
+            $normalized = $this->normalizeMeals($meals, $dateString);
+            if(count($normalized) > 0){
+                $mode = "dom";
+                return $normalized;
+            }
         }
 
         $mode = "none";
@@ -175,7 +209,14 @@ class BonAppetitWebParser implements DiningHallParser{
             $mealLabel = isset($daypart["label"]) ? $daypart["label"] : (isset($daypart["name"]) ? $daypart["name"] : "Unspecified");
             $mealKey = $this->normalizeMealKey($mealLabel);
             if(!isset($meals[$mealKey])){
-                $meals[$mealKey] = array("meal" => $mealLabel, "stations" => array());
+                $meals[$mealKey] = array(
+                    "meal" => $mealLabel,
+                    "starttime" => isset($daypart["starttime"]) ? $daypart["starttime"] : null,
+                    "endtime" => isset($daypart["endtime"]) ? $daypart["endtime"] : null,
+                    "starttime_formatted" => isset($daypart["starttime_formatted"]) ? $daypart["starttime_formatted"] : null,
+                    "endtime_formatted" => isset($daypart["endtime_formatted"]) ? $daypart["endtime_formatted"] : null,
+                    "stations" => array()
+                );
             }
 
             $stations = isset($daypart["stations"]) ? $daypart["stations"] : array();
@@ -299,7 +340,14 @@ class BonAppetitWebParser implements DiningHallParser{
             $mealKey = $this->normalizeMealKey($mealLabel);
 
             if(!isset($meals[$mealKey])){
-                $meals[$mealKey] = array("meal" => $mealLabel, "stations" => array());
+                $meals[$mealKey] = array(
+                    "meal" => $mealLabel,
+                    "starttime" => isset($daypart["starttime"]) ? $daypart["starttime"] : null,
+                    "endtime" => isset($daypart["endtime"]) ? $daypart["endtime"] : null,
+                    "starttime_formatted" => isset($daypart["starttime_formatted"]) ? $daypart["starttime_formatted"] : null,
+                    "endtime_formatted" => isset($daypart["endtime_formatted"]) ? $daypart["endtime_formatted"] : null,
+                    "stations" => array()
+                );
             }
 
             $stations = isset($daypart["stations"]) ? $daypart["stations"] : array();
@@ -333,7 +381,7 @@ class BonAppetitWebParser implements DiningHallParser{
         libxml_clear_errors();
 
         $xpath = new DOMXPath($dom);
-        $query = "//*[self::li or self::div or self::span][contains(@class,'menu-item') or contains(@class,'item-name') or contains(@class,'daypart-item-title') or self::li]";
+        $query = "//*[contains(concat(' ', normalize-space(@class), ' '), ' site-panel__daypart-item-title ') or contains(concat(' ', normalize-space(@class), ' '), ' daypart-item-title ') or contains(concat(' ', normalize-space(@class), ' '), ' item-name ')][ancestor::*[contains(@class,'daypart')]]";
         $nodes = $xpath->query($query);
 
         $meals = array();
@@ -408,7 +456,7 @@ class BonAppetitWebParser implements DiningHallParser{
             if(!isset($meal["stations"]) || count($meal["stations"]) < 1){continue;}
 
             $mealLabel = isset($meal["meal"]) ? $meal["meal"] : ucwords($mealKey);
-            $times = $this->defaultMealTimes($dateString, $mealKey);
+            $times = $this->mealTimes($dateString, $mealKey, $meal);
 
             $stations = array();
             foreach($meal["stations"] as $stationInfo){
@@ -420,15 +468,15 @@ class BonAppetitWebParser implements DiningHallParser{
                 $prettyStation = str_replace(" And ", " and ", $prettyStation);
 
                 $menu = array();
-                foreach($stationInfo["items"] as $it){
-                    $name = isset($it["name"]) ? $it["name"] : "";
+                foreach($stationInfo["items"] as $item){
+                    $name = isset($item["name"]) ? $item["name"] : "";
                     if(strlen($name) < 1){continue;}
                     $menu[] = array(
                         "name" => $name,
-                        "description" => isset($it["description"]) ? $it["description"] : "",
-                        "vegan" => isset($it["vegan"]) ? boolval($it["vegan"]) : false,
-                        "vegetarian" => isset($it["vegetarian"]) ? boolval($it["vegetarian"]) : false,
-                        "calories" => isset($it["calories"]) ? intval($it["calories"]) : 0
+                        "description" => isset($item["description"]) ? $item["description"] : "",
+                        "vegan" => isset($item["vegan"]) ? boolval($item["vegan"]) : false,
+                        "vegetarian" => isset($item["vegetarian"]) ? boolval($item["vegetarian"]) : false,
+                        "calories" => isset($item["calories"]) ? intval($item["calories"]) : 0
                     );
                 }
 
@@ -454,6 +502,8 @@ class BonAppetitWebParser implements DiningHallParser{
     }
 
     private function appendItem(&$destination, $itemRaw){
+        if(isset($itemRaw["special"]) && !$itemRaw["special"]){return;}
+
         $name = isset($itemRaw["label"]) ? $itemRaw["label"] : (isset($itemRaw["name"]) ? $itemRaw["name"] : "");
         $name = ucwords($this->cleanString($name));
         if(strlen($name) < 1){return;}
@@ -515,6 +565,30 @@ class BonAppetitWebParser implements DiningHallParser{
         );
     }
 
+    private function mealTimes($dateString, $mealKey, $meal){
+        if(isset($meal["starttime_formatted"], $meal["endtime_formatted"]) && $meal["starttime_formatted"] !== "" && $meal["endtime_formatted"] !== ""){
+            return array(
+                $this->convertDateAndMealTime($dateString, $meal["starttime_formatted"], $mealKey),
+                $this->convertDateAndMealTime($dateString, $meal["endtime_formatted"], $mealKey)
+            );
+        }
+        if(isset($meal["starttime"], $meal["endtime"]) && $meal["starttime"] !== "" && $meal["endtime"] !== ""){
+            return array(
+                $this->convertDateAndMealTime($dateString, $meal["starttime"], $mealKey),
+                $this->convertDateAndMealTime($dateString, $meal["endtime"], $mealKey)
+            );
+        }
+        return $this->defaultMealTimes($dateString, $mealKey);
+    }
+
+    private function convertDateAndMealTime($dateString, $time, $mealKey){
+        $timestamp = $this->convertDateAndTime($dateString, $time);
+        if(($mealKey === "dinner" || $mealKey === "late night") && intval(date("G", $timestamp)) < 12){
+            $timestamp += 12 * 60 * 60;
+        }
+        return $timestamp;
+    }
+
     private function convertDateAndTime($date, $time){
         date_default_timezone_set("America/Los_Angeles");
         $dateTimeRaw = "$date $time";
@@ -534,13 +608,11 @@ class BonAppetitWebParser implements DiningHallParser{
     }
 
     private function extractAssignmentObject($contents, $marker){
-        $markerPos = strpos($contents, $marker);
-        if($markerPos === false){return null;}
+        $assignmentPattern = '/' . preg_quote($marker, '/') . '\s*=\s*/';
+        if(!preg_match($assignmentPattern, $contents, $matches, PREG_OFFSET_CAPTURE)){return null;}
 
-        $eqPos = strpos($contents, "=", $markerPos);
-        if($eqPos === false){return null;}
-
-        $bracePos = strpos($contents, "{", $eqPos);
+        $assignmentEnd = $matches[0][1] + strlen($matches[0][0]);
+        $bracePos = strpos($contents, "{", $assignmentEnd);
         if($bracePos === false){return null;}
 
         return $this->extractBalancedObject($contents, $bracePos);

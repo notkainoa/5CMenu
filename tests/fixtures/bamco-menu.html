@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<body>
+<script>
+    Bamco = (typeof Bamco !== "undefined") ? Bamco : {};
+    Bamco.menu_items_nonce = 'not-the-menu';
+    Bamco.current_cafe = {"name":"Fixture Cafe","id":123};
+    Bamco.menu_items = {
+        "42": {
+            "id": "42",
+            "label": "fixture tofu bowl",
+            "description": "with seasonal vegetables",
+            "cor_icon": {"4": "Vegan"},
+            "nutrition": {"kcal": "420"}
+        }
+    };
+    Bamco.dayparts = Bamco.dayparts || {};
+    Bamco.dayparts['2'] = {
+        "starttime": "10:30",
+        "endtime": "13:30",
+        "id": "2",
+        "label": "Brunch",
+        "stations": [
+            {"id":"7","label":"global","items":["42"]}
+        ]
+    };
+</script>
+<nav><ul><li>About the college</li></ul></nav>
+</body>
+</html>
