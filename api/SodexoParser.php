@@ -318,6 +318,6 @@ class SodexoParser implements DiningHallParser{
     }
 
     private function fixString($str){
-        return preg_replace("/^\s*(.*?)\s*$/", "$1", $str);
+        return preg_replace("/^\s*(.*?)\s*$/", "$1", (string)$str);
     }
 }
