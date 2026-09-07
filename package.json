@@ -1,0 +1,26 @@
+{
+  "name": "5c-menu-api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --test-scheduled",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test test/*.test.ts",
+    "test:runtime": "tsx scripts/test-runtime.ts",
+    "check": "npm run typecheck && npm test",
+    "build": "wrangler deploy --dry-run --outdir dist",
+    "deploy": "wrangler deploy",
+    "sources": "tsx scripts/check-sources.ts",
+    "benchmark": "tsx scripts/benchmark.ts"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260906.1",
+    "@types/node": "^24.0.0",
+    "esbuild": "0.28.2",
+    "miniflare": "5.20260903.0-alpha",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0",
+    "wrangler": "^4.0.0"
+  }
+}

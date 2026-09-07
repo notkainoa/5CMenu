@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "five-c-menu-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-06",
+  "workers_dev": true,
+  "triggers": { "crons": ["0 * * * *"] },
+  "durable_objects": {
+    "bindings": [{ "name": "COLLECTOR", "class_name": "MenuCollector" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["MenuCollector"] }],
+  "kv_namespaces": [
+    { "binding": "MENUS", "id": "3672fa4babb64dcc845ae37b9cc75037" }
+  ],
+  "observability": { "enabled": true }
+}
