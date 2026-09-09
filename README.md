@@ -3,7 +3,7 @@ API for https://menu.jojodmo.com. To use the API, use the endpoint `https://5cme
 
 https://5cmenu-cache.jojodmo.com/v1/getMenu/?diningHall=hoch&startTime=1675670400&language=en
 
-This will respond with the JSON data for that menu
+This returns the selected day plus the next six calendar days, for up to seven days total. Pass `days=1` through `days=7` to request a shorter window. The API only returns dates the upstream dining provider has published.
 
 ## Using this codebase
 

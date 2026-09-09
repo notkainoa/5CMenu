@@ -30,10 +30,13 @@ function param($key, $default = NULL){
     return isset($_POST[$key]) ? $_POST[$key] : (isset($_GET[$key]) ? $_GET[$key] : $default);
 }
 
-function run($action){
-    $startTime = param("startTime");
+function menuDayKey($date){
+    $digits = preg_replace("/[^0-9]/", "", (string)$date);
+    return strlen($digits) >= 8 ? substr($digits, 0, 8) : null;
+}
+
+function menuWindowStartTime($startTime, $startDateParam){
     date_default_timezone_set("America/Los_Angeles");
-    $startDateParam = param("startDate", param("date"));
 
     if(!$startTime){
         $explodedStartDate = $startDateParam == null ? [] : preg_split("/[^0-9]+/", $startDateParam);
@@ -41,15 +44,49 @@ function run($action){
     }
     if(!$startTime){$startTime = time();}
 
+    $localTime = new DateTimeImmutable("@" . intval($startTime));
+    return $localTime->setTimezone(new DateTimeZone("America/Los_Angeles"))->setTime(0, 0, 0);
+}
+
+function menuWindowDays($startTime, $days){
+    $menuDays = array();
+    for($i = 0; $i < $days; $i++){
+        $menuDays[] = $startTime->modify("+$i day");
+    }
+    return $menuDays;
+}
+
+function collectMenuWindow($responses, $menuDays){
+    $allowedDates = array();
+    foreach($menuDays as $menuDay){
+        $allowedDates[$menuDay->format("Ymd")] = true;
+    }
+
+    $menuByDate = array();
+    foreach($responses as $response){
+        if(!isset($response["menu"]) || !is_array($response["menu"])){continue;}
+        foreach($response["menu"] as $menu){
+            $key = isset($menu["date"]) ? menuDayKey($menu["date"]) : null;
+            if($key === null || !isset($allowedDates[$key]) || isset($menuByDate[$key])){continue;}
+            $menuByDate[$key] = $menu;
+        }
+    }
+
+    $orderedMenu = array();
+    foreach(array_keys($allowedDates) as $key){
+        if(isset($menuByDate[$key])){$orderedMenu[] = $menuByDate[$key];}
+    }
+    return $orderedMenu;
+}
+
+function fetchMenu($diningHall, $startTime, $source){
     $startDate = date('m/d/Y', $startTime);
-    $diningHall = strtolower((string)param("diningHall", ""));
     if($diningHall == "mallot" || $diningHall == "mallott"){
         $diningHall = "malott";
     }
     if($diningHall == "mcconnell"){$diningHall = "mcconnel";}
     $parser = null;
 
-    $source = strtolower((string)param("source", ""));
     $allowCheckDatabase = !in_array($source, array("sodexo", "live", "web"));
     $shouldCheckDatabase = $source == "database";
 
@@ -110,4 +147,24 @@ function run($action){
 
     $parser->fetch();
     return $parser->getInfo();
+}
+
+function run($action){
+    $startTime = menuWindowStartTime(param("startTime"), param("startDate", param("date")));
+    $days = intval(param("days", 7));
+    $days = max(1, min($days, 7));
+    $diningHall = strtolower((string)param("diningHall", ""));
+    $source = strtolower((string)param("source", ""));
+    $menuDays = menuWindowDays($startTime, $days);
+    $responses = array();
+
+    foreach($menuDays as $menuDay){
+        $responses[] = fetchMenu($diningHall, $menuDay->getTimestamp(), $source);
+        $menu = collectMenuWindow($responses, $menuDays);
+        if(count($menu) === count($menuDays)){break;}
+    }
+
+    $result = count($responses) > 0 ? $responses[0] : array();
+    $result["menu"] = collectMenuWindow($responses, $menuDays);
+    return $result;
 }
