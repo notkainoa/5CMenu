@@ -12,7 +12,7 @@ import type {
 } from '../types';
 import { boundedText } from './response';
 
-const STATE_VERSION = 1;
+const STATE_VERSION = 2;
 const PROVIDER = 'bon-appetit';
 
 const CAFES = {
@@ -284,8 +284,35 @@ function isClosedSection(section: { attributes: string; body: string }): boolean
   return /^closed(?:\s+for\s+.+)?$/i.test(textContent(title ?? heading ?? ''));
 }
 
+function collinsSpecialHours(html: string, date: string, meals: Meal[]): Meal[] {
+  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const [year, month, day] = date.split('-').map(Number);
+  const dateLabel = `${monthNames[month - 1]} ${day}`;
+  const special = new Map<string, { startTime: string; endTime: string }>();
+  const clock = (hour: string, minute: string, period: string): string =>
+    `${String(Number(hour) % 12 + (period.toLowerCase() === 'pm' ? 12 : 0)).padStart(2, '0')}:${minute}`;
+  for (const block of elementBlocks(html, 'div', 'cafe-hours-special')) {
+    for (const row of elementBlocks(block.body, 'li', 'dotted-leader-container')) {
+      const label = elementBlocks(row.body, 'span', 'pull-left')[0];
+      const hours = elementBlocks(row.body, 'span', 'pull-right')[0];
+      if (!label || !hours) continue;
+      const value = textContent(hours.body);
+      const match = /^(\w+ \d{1,2})(?:, (\d{4}))?, (1[0-2]|[1-9]):([0-5]\d) (am|pm) - (1[0-2]|[1-9]):([0-5]\d) (am|pm)$/i.exec(value);
+      if (!match || match[1] !== dateLabel || match[2] && Number(match[2]) !== year) continue;
+      const name = textContent(label.body).toLowerCase();
+      if (!meals.some(meal => meal.name.toLowerCase() === name)) throw new Error('Collins special-hours meal lacks a dated menu');
+      special.set(name, { startTime: clock(match[3], match[4], match[5]), endTime: clock(match[6], match[7], match[8]) });
+    }
+  }
+  // Collins leaves regular weekday pantry menus in the HTML on holiday brunch
+  // days. A dated brunch replaces morning service, unless explicitly listed too.
+  return meals.filter(meal => !special.has('brunch') || special.has(meal.name.toLowerCase()) ||
+    !['breakfast', 'continental breakfast', 'lunch'].includes(meal.name.toLowerCase()))
+    .map(meal => ({ ...meal, ...special.get(meal.name.toLowerCase()) }));
+}
+
 /** Parse one dated public cafe page. A null result means that exact date was not published. */
-export function parseBonAppetitPage(html: string, requestedDate: string): ParsedDay | null {
+export function parseBonAppetitPage(html: string, requestedDate: string, hall?: HallId): ParsedDay | null {
   if (!isServiceDate(requestedDate)) throw new Error('Invalid Bon Appétit service date');
   const matchingSections = elementBlocks(html, 'section', 'site-panel--daypart')
     .filter(section => sectionDate(section) === requestedDate);
@@ -295,7 +322,8 @@ export function parseBonAppetitPage(html: string, requestedDate: string): Parsed
   const itemData = jsonAssignment(html, 'menu_items');
   if (!isRecord(itemData)) throw new Error('Bamco.menu_items is not an object');
   const mealSections = matchingSections.filter(section => !isClosedSection(section));
-  const meals = mealSections.map(section => mealFromSection(section, itemData));
+  const parsedMeals = mealSections.map(section => mealFromSection(section, itemData));
+  const meals = hall === 'collins' ? collinsSpecialHours(html, requestedDate, parsedMeals) : parsedMeals;
   const itemCount = meals.reduce((sum, meal) => sum + meal.stations.reduce((stationSum, station) => stationSum + station.items.length, 0), 0);
   if (itemCount === 0) throw new Error('Bon Appétit page has dated dayparts but no menu items');
   return { date: requestedDate, status: 'ok', meals };
@@ -336,7 +364,7 @@ async function fetchDate(
     const html = await boundedText(response, 4 * 1024 * 1024);
     const inputDigest = await digest(html);
     if (previous?.digest === inputDigest) return previous;
-    const day = parseBonAppetitPage(html, date);
+    const day = parseBonAppetitPage(html, date, hall);
     if (!day) return null;
     const lastModified = validLastModified(response.headers.get('last-modified'));
     return { url, digest: inputDigest, ...(lastModified ? { lastModified } : {}), day };

@@ -10,7 +10,7 @@ Every hour, a Cloudflare Cron Trigger calls one private Durable Object. That col
 
 The Durable Object gives collection a 30-second CPU allowance instead of the regular free Worker's 10 ms allowance. It uses SQLite storage for a small record of the last completed hour, preventing duplicate hourly runs. Apps never call the collector. Everything needed for operation runs on Cloudflare; GitHub Actions is used only for optional code checks.
 
-The initial date window is **today and tomorrow in America/Los_Angeles**. Tomorrow's data is collected ahead of midnight when available. Yesterday is never substituted for today.
+The date window is **today through six days ahead in America/Los_Angeles**, seven calendar days total. Later dates in that window are collected before midnight when the schools have published them. Yesterday is never substituted for today.
 
 ## API
 
@@ -26,7 +26,7 @@ No API key is required. All routes support `GET`, `HEAD`, and browser CORS. `/` 
 
 Canonical IDs: `hoch`, `malott`, `mcconnell`, `collins`, `frank`, `frary`, `oldenborg`. The old spelling `mcconnel` is an alias for `mcconnell`.
 
-The only menu query parameter is `date`, supplied at most once as `YYYY-MM-DD`. Dates outside today/tomorrow return HTTP 400, even if an upstream feed contains more dates. Examples with fixed dates must be adjusted when used.
+The only menu query parameter is `date`, supplied at most once as `YYYY-MM-DD`. Dates outside today through six days ahead return HTTP 400, even if an upstream feed contains more dates. Examples with fixed dates must be adjusted when used.
 
 Individual response example, with illustrative food:
 
@@ -69,6 +69,8 @@ Failures include `error: { "code": "...", "message": "..." }`. Menu codes are `S
 Timestamps use UTC ISO 8601 strings or `null` when unknown. Data becomes stale after 90 minutes without a successful check, with up to 60 seconds of additional response caching. A stale empty array can represent a previously verified closure. No successful menu from another service date is used as fallback.
 
 Optional item fields are `description`, `vegan`, `vegetarian`, and `calories`. Missing information stays absent. Meal `startTime` and `endTime`, when supplied, are local `HH:mm` times in California. Pomona and Hoch currently omit times because their integrated menu feeds do not provide verified meal hours. Menus and dietary labels are reported as supplied by the schools.
+
+Collins dated special hours override matching meal times. When those hours list brunch, the collector omits regular breakfast, continental breakfast, and lunch sections unless the special schedule also explicitly lists them. A dinner-only exception does not remove other meals. This handles holiday brunch pages that retain regular weekday menu sections; it is not a general operating-hours integration for every hall.
 
 HTTP input/storage errors use `{ "error": { "code": "...", "message": "..." } }`. Codes include `invalid_date`, `unsupported_date`, `unknown_query_parameter`, `hall_not_found`, `not_found`, `method_not_allowed`, and `storage_unavailable`. Input errors return 400, unknown resources 404, unsupported methods 405, and storage failures 503.
 
@@ -135,10 +137,10 @@ At 20,000 API calls/day, the estimated budget is:
 | KV reads | At most one per uncached menu request, plus 24 refresh reads | 100,000 |
 | KV writes | Normally 24 | 1,000 |
 | Durable Object requests | Normally 24 | 100,000 |
-| Durable Object duration | About 31 GB-seconds if each refresh lasts 10 seconds | 13,000 GB-seconds |
+| Durable Object duration | About 62 GB-seconds if each refresh lasts 20 seconds | 13,000 GB-seconds |
 | Durable Object storage writes | Normally 24 small completion records | 100,000 rows |
 
-These allowances are shared with other projects on the account. The duration estimate is `24 × 10 seconds × 0.128 GB`; actual duration varies with school response times. Network waiting counts toward Durable Object duration, though it is excluded from CPU time. Unchanged checks still save freshness metadata. Old public dates are removed when the snapshot is replaced. Deletion does not refund writes.
+These allowances are shared with other projects on the account. The duration estimate is `24 × 20 seconds × 0.128 GB`; actual duration varies with school response times. Network waiting counts toward Durable Object duration, though it is excluded from CPU time. Unchanged checks still save freshness metadata. Old public dates are removed when the snapshot is replaced. Deletion does not refund writes.
 
 References: [Workers limits](https://developers.cloudflare.com/workers/platform/limits/), [KV pricing](https://developers.cloudflare.com/kv/platform/pricing/), [Durable Object limits](https://developers.cloudflare.com/durable-objects/platform/limits/), [Durable Object pricing](https://developers.cloudflare.com/durable-objects/platform/pricing/).
 

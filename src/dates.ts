@@ -1,4 +1,5 @@
 export const TIMEZONE = 'America/Los_Angeles';
+export const WINDOW_DAYS = 7;
 const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: TIMEZONE, year: 'numeric', month: '2-digit', day: '2-digit' });
 export function californiaDate(now: Date): string {
   const parts = formatter.formatToParts(now);
@@ -10,8 +11,12 @@ export function isValidDate(value: string): boolean {
 }
 export function supportedDates(now: Date): string[] {
   const today = californiaDate(now);
-  // Advance a calendar date in UTC, not 24 hours in California across DST.
-  const next = new Date(`${today}T12:00:00Z`);
-  next.setUTCDate(next.getUTCDate() + 1);
-  return [today, next.toISOString().slice(0, 10)];
+  // Advance calendar dates in UTC, not 24-hour steps in California across DST.
+  const cursor = new Date(`${today}T12:00:00Z`);
+  const dates = [today];
+  for (let offset = 1; offset < WINDOW_DAYS; offset += 1) {
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+    dates.push(cursor.toISOString().slice(0, 10));
+  }
+  return dates;
 }

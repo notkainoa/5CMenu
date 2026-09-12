@@ -21,8 +21,12 @@ const provider: RefreshHall = async (_hall, dates) => ({ days: dates.map(date =>
 test('California calendar dates handle UTC rollover, leap years, and both DST transitions', () => {
   assert.equal(californiaDate(new Date('2026-09-07T06:59:59Z')), '2026-09-06');
   assert.equal(californiaDate(new Date('2026-09-07T07:00:00Z')), '2026-09-07');
-  assert.deepEqual(supportedDates(new Date('2026-03-08T09:00:00Z')), ['2026-03-08', '2026-03-09']);
-  assert.deepEqual(supportedDates(new Date('2026-11-01T08:00:00Z')), ['2026-11-01', '2026-11-02']);
+  assert.deepEqual(supportedDates(new Date('2026-03-08T09:00:00Z')), [
+    '2026-03-08', '2026-03-09', '2026-03-10', '2026-03-11', '2026-03-12', '2026-03-13', '2026-03-14',
+  ]);
+  assert.deepEqual(supportedDates(new Date('2026-11-01T08:00:00Z')), [
+    '2026-11-01', '2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05', '2026-11-06', '2026-11-07',
+  ]);
   assert.equal(isValidDate('2024-02-29'), true);
   for (const invalid of ['2026-02-29', '2026-04-31', '2026-1-01', '2026-01-01x', 'foo']) assert.equal(isValidDate(invalid), false);
 });
@@ -31,6 +35,7 @@ test('one refresh writes one snapshot for every hall and date; unchanged data pr
   const store = new MemoryStore();
   const first = await refreshMenus({ MENUS: store }, provider, now);
   assert.equal(store.writes, 1);
+  assert.deepEqual(Object.keys(first.menus).sort(), ['2026-09-06', '2026-09-07', '2026-09-08', '2026-09-09', '2026-09-10', '2026-09-11', '2026-09-12']);
   assert.equal(Object.keys(first.menus['2026-09-06']).length, 7);
   const later = new Date('2026-09-06T20:00:00Z');
   const second = await refreshMenus({ MENUS: store }, provider, later);

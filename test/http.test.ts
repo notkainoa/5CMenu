@@ -100,6 +100,18 @@ test('rejects malformed, unsupported, and unknown query input before storage acc
   assert.equal(store.reads, 0);
 });
 
+test('accepts today through six days ahead and rejects the eighth calendar day', async () => {
+  const { env, store } = environment();
+  const lastSupported = await handleRequest(new Request('https://api.example.test/v1/menus?date=2026-09-12'), env, NOW);
+  const eighthDay = await handleRequest(new Request('https://api.example.test/v1/menus?date=2026-09-13'), env, NOW);
+
+  assert.equal(lastSupported.status, 503);
+  assert.equal(store.reads, 1);
+  assert.equal(eighthDay.status, 400);
+  assert.equal((await json(eighthDay) as { error: { code: string } }).error.code, 'unsupported_date');
+  assert.equal(store.reads, 1);
+});
+
 test('uses expected method, route, and hall errors', async () => {
   const { env } = environment();
   const method = await handleRequest(new Request('https://api.example.test/v1/menus', { method: 'POST' }), env, NOW);

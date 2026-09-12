@@ -47,6 +47,28 @@ function response(body: string, init: ResponseInit = {}): Response {
 }
 
 describe('parseBonAppetitPage', () => {
+  it('reconciles Collins holiday brunch with regular morning sections and special dinner hours', () => {
+    const special = `<div class='cafe-hours-special'><ul>
+      <li class='day-part dotted-leader-container'><span class='pull-left'>Brunch&nbsp;</span><span class='pull-right'>&nbsp;September 7, 10:30 am - 12:30 pm</span></li>
+      <li class='day-part'><span>Labor Day Brunch</span></li>
+      <li class='day-part dotted-leader-container'><span class='pull-left'>Dinner</span><span class='pull-right'>September 7, 4:30 pm - 6:30 pm</span></li>
+    </ul></div>`;
+    const section = (name: string) => `<section class="site-panel--daypart" data-jump-nav-title="${name}"><div class="site-panel__daypart-container" data-end-date="${TOMORROW}" data-start-time="17:00" data-end-time="19:00"><h3 class="site-panel__daypart-station-title">Main</h3><div class="site-panel__daypart-item" data-id="101"></div></div></section>`;
+    const html = fixture(TOMORROW) + section('Continental Breakfast') + section('Brunch') + section('Dinner') + special;
+    const day = parseBonAppetitPage(html, TOMORROW, 'collins');
+    assert.deepEqual(day?.meals.map(({ name, startTime, endTime }) => ({ name, startTime, endTime })), [
+      { name: 'Brunch', startTime: '10:30', endTime: '12:30' },
+      { name: 'Dinner', startTime: '16:30', endTime: '18:30' },
+    ]);
+    assert.equal(parseBonAppetitPage(html.replaceAll('September 7,', 'September 8,'), TOMORROW, 'collins')?.meals.length, 5);
+    assert.equal(parseBonAppetitPage(html, TOMORROW, 'malott')?.meals.length, 5);
+    const dinnerOnly = html.replace('September 7, 10:30', 'September 8, 10:30');
+    assert.equal(parseBonAppetitPage(dinnerOnly, TOMORROW, 'collins')?.meals.length, 5);
+    const explicitBreakfast = html.replace('</ul>', `<li class='dotted-leader-container'><span class='pull-left'>Breakfast</span><span class='pull-right'>September 7, 7:30 am - 9:00 am</span></li></ul>`);
+    assert.deepEqual(parseBonAppetitPage(explicitBreakfast, TOMORROW, 'collins')?.meals.map(meal => meal.name), ['Breakfast', 'Brunch', 'Dinner']);
+    assert.throws(() => parseBonAppetitPage(fixture(TOMORROW) + special, TOMORROW, 'collins'), /special-hours meal/);
+  });
+
   it('preserves every rendered meal, station, and item without inventing optional data', () => {
     const day = parseBonAppetitPage(fixture(), DATE);
     assert.deepEqual(day, {
@@ -91,6 +113,17 @@ describe('parseBonAppetitPage', () => {
 });
 
 describe('refreshBonAppetit', () => {
+  it('invalidates parsed state from before special-hours reconciliation', async () => {
+    const first = await refreshBonAppetit('collins', [DATE], undefined, async () => response(fixture(), { headers: { 'last-modified': 'Sun, 06 Sep 2026 22:00:18 GMT' } }));
+    const previous = { ...first.state, version: 1 };
+    let headers: Headers | undefined;
+    await refreshBonAppetit('collins', [DATE], previous, async (_input, init) => {
+      headers = new Headers(init?.headers);
+      return response(fixture());
+    });
+    assert.equal(headers?.has('if-modified-since'), false);
+  });
+
   it('fetches today and tomorrow from the hall-specific dated URLs', async () => {
     const urls: string[] = [];
     const fetcher: Fetcher = async input => {

@@ -57,7 +57,21 @@ These measurements explain the private Durable Object collector. They are not Cl
 
 ## Deployment status
 
-Deployed at https://five-c-menu-api.kainoanewton.workers.dev. Current version: `16c4bbf8-aafc-4299-8a37-7fcb229e27f8`. Wrangler confirmed the production KV binding, SQLite-backed `MenuCollector` Durable Object, and hourly `0 * * * *` Cron Trigger. The deployed bundle is 51.25 KiB, 13.18 KiB gzipped.
+### Seven-day public window
+
+The collector now stores today through six days ahead in America/Los_Angeles. Public `?date=` values outside that window still return HTTP 400. Deterministic tests cover the seven-day range, including spring-forward and fall-back calendar arithmetic. All 44 deterministic tests and both workerd scenarios passed. Dry-run bundle is 53.25 KiB, 13.90 KiB gzipped.
+
+`npm run sources` at 2026-09-12T22:19:36Z requested September 12 through 18. Six halls returned verified menus for every date in that window (Frank closed on the 12th, one breakfast item on the 18th). Oldenborg remains unpublished. Hoch's Sodexo feed continues through September 25. Bon Appétit dated pages for Collins, Malott, and McConnell still contain menus on sampled dates through November 1. Production still served only today and tomorrow until the next deployment and hourly collection after this change.
+
+### September 7 Collins correction
+
+Deployed version `a3af9c61-d643-4cbe-b6a0-81d4a1073bb4` reconciles Collins dated special hours. Live-source parsing produces September 7 Brunch 10:30-12:30 and Dinner 16:30-18:30; September 8 retains its four regular periods. The previous five-period September 7 response copied source menu sections without reconciling the holiday schedule.
+
+All 43 deterministic tests and both workerd scenarios pass. Regression coverage includes other dates/halls, dinner-only exceptions, explicitly retained breakfast, missing special-period menus, and invalidating old parsed caches. Public KV changes on the next hourly collection after deployment; deployment alone does not rewrite the snapshot. The bundle is 53.10 KiB, 13.84 KiB gzipped.
+
+### Initial deployment
+
+Deployed at https://five-c-menu-api.kainoanewton.workers.dev. Initially verified version: `16c4bbf8-aafc-4299-8a37-7fcb229e27f8`. Wrangler confirmed the production KV binding, SQLite-backed `MenuCollector` Durable Object, and hourly `0 * * * *` Cron Trigger. That bundle was 51.25 KiB, 13.18 KiB gzipped.
 
 Production requests at approximately 2026-09-07T16:53Z confirmed a saved snapshot checked by the hourly collector at `2026-09-07T16:01:25.611Z`. No manual snapshot upload was needed. Both September 7 and September 8 returned HTTP 200 with six `ok` halls and Oldenborg `unavailable` with `MENU_NOT_PUBLISHED`.
 

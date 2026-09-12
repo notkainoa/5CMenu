@@ -113,7 +113,7 @@ function requestedDate(url: URL, now: Date): { date: string; explicit: boolean }
   if (date === null) return { date: californiaDate(now), explicit: false };
   if (!isValidDate(date)) return { code: 'invalid_date', message: 'date must use YYYY-MM-DD.' };
   if (!supportedDates(now).includes(date)) {
-    return { code: 'unsupported_date', message: 'date must be today or tomorrow in America/Los_Angeles.' };
+    return { code: 'unsupported_date', message: 'date must be today through six days ahead in America/Los_Angeles.' };
   }
   return { date, explicit: true };
 }
