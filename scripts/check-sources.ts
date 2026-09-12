@@ -1,6 +1,24 @@
+import process from 'node:process';
 import { refreshHall } from '../src/providers';
 import { supportedDates } from '../src/dates';
 import { HALLS } from '../src/types';
+
+const DIAGNOSTIC_BYTE_LIMIT = 4 * 1024 * 1024;
+
+async function countedBytes(response: Response, limit: number): Promise<number> {
+  if (!response.body) return 0;
+  const reader = response.body.getReader();
+  let total = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) return total;
+    total += value.byteLength;
+    if (total > limit) {
+      await reader.cancel();
+      throw new Error(`Diagnostic clone exceeded ${limit} bytes`);
+    }
+  }
+}
 
 const now = new Date();
 const dates = supportedDates(now);
@@ -13,8 +31,8 @@ for (const hall of HALLS) {
     const measuredFetch: typeof fetch = async (input, init) => {
       requests++;
       const response = await fetch(input, init);
-      // Consume the clone only for diagnostics; production does not duplicate downloads.
-      bytes += (await response.clone().arrayBuffer()).byteLength;
+      // Count the clone only for diagnostics; production does not duplicate downloads.
+      bytes += await countedBytes(response.clone(), DIAGNOSTIC_BYTE_LIMIT);
       return response;
     };
     const result = await refreshHall(hall.id, dates, undefined, measuredFetch);

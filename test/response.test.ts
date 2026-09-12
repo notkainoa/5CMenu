@@ -15,10 +15,12 @@ test('declared oversize responses are cancelled before reading them', async () =
   assert.equal(cancelled, true);
 });
 test('Bon Appetit fetches carry cancellation signals and abort failures remain unavailable', async () => {
+  let sawSignal = false;
   const result = await refreshBonAppetit('collins', ['2026-09-06'], undefined, async (_url, init) => {
-    assert.ok(init?.signal instanceof AbortSignal);
+    sawSignal = init?.signal instanceof AbortSignal;
     throw new DOMException('Aborted', 'AbortError');
   });
+  assert.equal(sawSignal, true);
   assert.deepEqual(result.days, []);
   assert.equal(result.errors?.['2026-09-06'].code, 'SOURCE_FETCH_FAILED');
 });

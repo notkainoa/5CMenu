@@ -13,12 +13,21 @@ const recordingFetch: typeof fetch = async (input, init) => {
   const response = await fetch(input, init);
   const body = await response.text();
   const headers = [...response.headers.entries()];
+  if (!response.ok) throw new Error(`Benchmark source ${String(input)} returned HTTP ${response.status}`);
   responses.set(String(input), { body, headers, status: response.status });
   return new Response(body, { headers, status: response.status });
 };
-const replayFetch: typeof fetch = async input => {
+const replayFetch: typeof fetch = async (input, init) => {
   const recorded = responses.get(String(input));
   if (!recorded) throw new Error(`Unrecorded benchmark URL: ${input}`);
+  const requestHeaders = new Headers(init?.headers);
+  const recordedHeaders = new Headers(recorded.headers);
+  if (requestHeaders.get('if-none-match') && requestHeaders.get('if-none-match') === recordedHeaders.get('etag')) {
+    return new Response(null, { status: 304, headers: recorded.headers });
+  }
+  if (requestHeaders.get('if-modified-since') && requestHeaders.get('if-modified-since') === recordedHeaders.get('last-modified')) {
+    return new Response(null, { status: 304, headers: recorded.headers });
+  }
   return new Response(recorded.body, { headers: recorded.headers, status: recorded.status });
 };
 const now = new Date();

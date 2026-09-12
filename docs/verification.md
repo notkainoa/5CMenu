@@ -4,7 +4,7 @@ Local checks ran on 2026-09-06; production verification ran on 2026-09-07. This 
 
 ## Deterministic checks
 
-Final results: strict TypeScript checking passed; all 41 deterministic tests passed; both workerd integration scenarios passed; deployment dry-run passed with a 51.25 KiB bundle, 13.18 KiB gzipped.
+Initial deployment: strict TypeScript checking passed; all 41 deterministic tests passed; both workerd integration scenarios passed; deployment dry-run passed with a 51.25 KiB bundle, 13.18 KiB gzipped.
 
 Run `npm run check` for strict TypeScript checking and fixture/state/HTTP tests. Run `npm run test:runtime` for two integration scenarios in actual local workerd with KV and SQLite Durable Objects:
 

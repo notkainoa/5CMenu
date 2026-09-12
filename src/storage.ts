@@ -5,10 +5,14 @@ export const SNAPSHOT_KEY = 'snapshot:v1';
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
+function validTime(value: unknown): boolean {
+  return typeof value === 'string' && /^(?:[01]?\d|2[0-3]):[0-5]\d$/.test(value);
+}
+
 export function validMeals(value: unknown): value is Meal[] {
   return Array.isArray(value) && value.length <= 30 && value.every(meal =>
     isRecord(meal) && typeof meal.name === 'string' && meal.name.trim().length > 0 &&
-    [meal.startTime, meal.endTime].every(time => time === undefined || typeof time === 'string') &&
+    [meal.startTime, meal.endTime].every(time => time === undefined || validTime(time)) &&
     Array.isArray(meal.stations) && meal.stations.length <= 200 && meal.stations.every(station =>
       isRecord(station) && typeof station.name === 'string' && station.name.trim().length > 0 &&
       Array.isArray(station.items) && station.items.length <= 2000 && station.items.every(item =>
@@ -33,6 +37,7 @@ export async function readSnapshot(store: SnapshotStore): Promise<Snapshot | nul
         !['ok', 'closed', 'stale', 'unavailable'].includes(String(menu.status)) || typeof menu.sourceUrl !== 'string' ||
         ![menu.lastCheckedAt, menu.lastSuccessfulCheckAt, menu.menuUpdatedAt].every(timestamp) ||
         (menu.status === 'unavailable' ? menu.meals !== null : !validMeals(menu.meals)) ||
+        (menu.status === 'closed' && Array.isArray(menu.meals) && menu.meals.length !== 0) ||
         (menu.error !== undefined && (!isRecord(menu.error) || typeof menu.error.code !== 'string' || typeof menu.error.message !== 'string'))) {
         throw new Error('Invalid stored menu');
       }

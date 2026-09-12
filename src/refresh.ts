@@ -61,8 +61,9 @@ export async function refreshMenus(env: Env, refreshHall: RefreshHall, now = new
   // At most two halls in flight; provider adapters must also bound their fetches.
   await Promise.all([work(), work()]);
   const serialized = JSON.stringify(next);
-  if (new TextEncoder().encode(serialized).byteLength > 5 * 1024 * 1024) throw new Error('Snapshot exceeds the 5 MB application limit');
+  const bytes = new TextEncoder().encode(serialized).byteLength;
+  if (bytes > 5 * 1024 * 1024) throw new Error('Snapshot exceeds the 5 MB application limit');
   await env.MENUS.put(SNAPSHOT_KEY, serialized);
-  console.info(JSON.stringify({ event: 'refresh_complete', at: checkedAt, bytes: serialized.length }));
+  console.info(JSON.stringify({ event: 'refresh_complete', at: checkedAt, bytes }));
   return next;
 }

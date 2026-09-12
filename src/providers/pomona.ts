@@ -170,10 +170,16 @@ export const refreshPomona: RefreshHall = async (hall, dates, previous, fetcher)
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
-    let response = await request(FEEDS[hall as keyof typeof FEEDS], prior, fetcher, true, controller.signal);
+    const url = FEEDS[hall as keyof typeof FEEDS];
+    let response = await request(url, prior, fetcher, true, controller.signal);
     if (response.status === 304) {
-      if (!prior) response = await request(FEEDS[hall as keyof typeof FEEDS], undefined, fetcher, false, controller.signal);
-      else return { days: prior.days.filter(day => dates.includes(day.date)), state: prior };
+      const covered = prior ? dates.filter(date => prior.days.some(day => day.date === date)).length : 0;
+      // A shorter cached window must not hide newly requested dates behind an unchanged ETag.
+      if (!prior || (covered > 0 && covered < dates.length)) {
+        response = await request(url, undefined, fetcher, false, controller.signal);
+      } else {
+        return { days: prior.days.filter(day => dates.includes(day.date)), state: prior };
+      }
     }
     if (!response.ok) throw new Error(`Pomona returned HTTP ${response.status}`);
     const contentType = response.headers.get('content-type')?.toLowerCase();

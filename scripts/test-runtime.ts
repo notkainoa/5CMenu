@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { build } from 'esbuild';
 import { Miniflare, Response as RuntimeResponse, convertV4MiniflareOptions } from 'miniflare';
-import { supportedDates } from '../src/dates';
+import { californiaDate, supportedDates } from '../src/dates';
 import { SNAPSHOT_KEY } from '../src/storage';
 import { HALLS, type Snapshot } from '../src/types';
 
@@ -50,7 +50,16 @@ try {
 }
 
 let sourceCalls = 0;
-const dates = supportedDates(new Date());
+function nearbyServiceDates(now: Date): string[] {
+  const start = new Date(`${californiaDate(now)}T12:00:00Z`);
+  start.setUTCDate(start.getUTCDate() - 1);
+  return Array.from({ length: 10 }, (_, offset) => {
+    const day = new Date(start);
+    day.setUTCDate(start.getUTCDate() + offset);
+    return day.toISOString().slice(0, 10);
+  });
+}
+const pomonaDates = nearbyServiceDates(new Date());
 const collectorRuntime = new Miniflare(convertV4MiniflareOptions({
   modules: true, script: bundle.outputFiles[0].text, compatibilityDate: '2026-09-06',
   kvNamespaces: ['MENUS'],
@@ -66,7 +75,7 @@ const collectorRuntime = new Miniflare(convertV4MiniflareOptions({
       return new RuntimeResponse(JSON.stringify([{ name: 'Lunch', groups: [{ name: 'Main', items: [{ formalName: 'Rice' }] }] }]), { headers: { 'content-type': 'application/json' } });
     }
     if (url.hostname === 'api.pomona.edu') {
-      const records = dates.map(date => ({ '@servedate': date.replaceAll('-', ''), '@mealperiodname': 'Lunch', recipes: { recipe: { '@shortName': 'Soup', '@category': 'Main' } } }));
+      const records = pomonaDates.map(date => ({ '@servedate': date.replaceAll('-', ''), '@mealperiodname': 'Lunch', recipes: { recipe: { '@shortName': 'Soup', '@category': 'Main' } } }));
       return new RuntimeResponse(`/**/ menuData(${JSON.stringify({ EatecExchange: { menu: records } })});`, { headers: { 'content-type': 'application/json' } });
     }
     throw new Error(`Unexpected outbound request in runtime test: ${url}`);
@@ -76,13 +85,15 @@ try {
   const worker = await collectorRuntime.getWorker();
   const scheduled = await worker.scheduled({ cron: '0 * * * *' });
   assert.equal(scheduled.outcome, 'ok');
-  // 3 Bon Appétit halls × 7 dates, 7 Sodexo dates, and 3 Pomona feeds.
-  const expectedSourceCalls = 3 * dates.length + dates.length + 3;
-  assert.equal(sourceCalls, expectedSourceCalls);
   const kv = await collectorRuntime.getKVNamespace('MENUS');
   const stored = await kv.get(SNAPSHOT_KEY);
   assert.ok(stored);
   const snapshot = JSON.parse(stored) as Snapshot;
+  const dates = Object.keys(snapshot.menus).sort();
+  assert.equal(dates.length, 7);
+  // 3 Bon Appétit halls × 7 dates, 7 Sodexo dates, and 3 Pomona feeds.
+  const expectedSourceCalls = 3 * dates.length + dates.length + 3;
+  assert.equal(sourceCalls, expectedSourceCalls);
   for (const date of dates) {
     assert.equal(Object.keys(snapshot.menus[date]).length, 7);
     assert.ok(Object.values(snapshot.menus[date]).every(menu => menu?.status === 'ok'));

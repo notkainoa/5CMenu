@@ -123,3 +123,44 @@ test('provider concurrency is bounded and previous state is passed through', asy
   assert.equal(peak, 2);
   assert.equal(HALLS.length, 7);
 });
+
+test('a snapshot over 5 MB fails the refresh without writing', async () => {
+  const store = new MemoryStore();
+  const items = Array.from({ length: 80 }, (_, index) => ({ name: `${index}:${'n'.repeat(1990)}` }));
+  await assert.rejects(refreshMenus({ MENUS: store }, async (_hall, dates) => ({
+    days: dates.map(date => ({ date, status: 'ok' as const, meals: [{ name: 'Lunch', stations: [{ name: 'Main', items }] }] })),
+    state: { hash: 'huge' },
+  }), now), /5 MB/);
+  assert.equal(store.writes, 0);
+});
+
+test('per-date provider errors publish successful dates and mark the rest failed', async () => {
+  const store = new MemoryStore();
+  const failed = await refreshMenus({ MENUS: store }, async (_hall, dates) => ({
+    days: [day(dates[0])],
+    state: { hash: 'partial' },
+    errors: { [dates[1]]: { code: 'SOURCE_FETCH_FAILED', message: 'The menu source could not be fetched or validated.' } },
+  }), now);
+  assert.equal(failed.menus['2026-09-06'].collins?.status, 'ok');
+  assert.equal(failed.menus['2026-09-07'].collins?.status, 'unavailable');
+  assert.equal(failed.menus['2026-09-07'].collins?.error?.code, 'SOURCE_FETCH_FAILED');
+});
+
+test('stored snapshots reject invalid meal times and closed menus that still list food', async () => {
+  const store = new MemoryStore();
+  await refreshMenus({ MENUS: store }, provider, now);
+  const snapshot = JSON.parse(store.value!) as { menus: Record<string, { collins: { meals: { startTime?: string }[]; status: string } }> };
+  snapshot.menus['2026-09-06'].collins.meals[0].startTime = 'noon';
+  store.value = JSON.stringify(snapshot);
+  await assert.rejects(readSnapshot(store), /Invalid stored menu/);
+
+  const closedStore = new MemoryStore();
+  await refreshMenus({ MENUS: closedStore }, async () => ({
+    days: [{ date: '2026-09-06', status: 'closed' as const, meals: [] }],
+    state: {},
+  }), now);
+  const closed = JSON.parse(closedStore.value!) as { menus: Record<string, { collins: { status: string; meals: unknown } }> };
+  closed.menus['2026-09-06'].collins.meals = [{ name: 'Lunch', stations: [{ name: 'Main', items: [{ name: 'Pasta' }] }] }];
+  closedStore.value = JSON.stringify(closed);
+  await assert.rejects(readSnapshot(closedStore), /Invalid stored menu/);
+});

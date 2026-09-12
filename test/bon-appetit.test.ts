@@ -43,7 +43,9 @@ function fixture(date = DATE, itemSuffix = ''): string {
 }
 
 function response(body: string, init: ResponseInit = {}): Response {
-  return new Response(body, { status: 200, headers: { 'content-type': 'text/html; charset=UTF-8', ...init.headers }, ...init });
+  const headers = new Headers({ 'content-type': 'text/html; charset=UTF-8' });
+  new Headers(init.headers).forEach((value, key) => headers.set(key, value));
+  return new Response(body, { ...init, status: init.status ?? 200, headers });
 }
 
 describe('parseBonAppetitPage', () => {
