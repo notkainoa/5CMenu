@@ -13,8 +13,10 @@ const recordingFetch: typeof fetch = async (input, init) => {
   const response = await fetch(input, init);
   const body = await response.text();
   const headers = [...response.headers.entries()];
-  if (!response.ok) throw new Error(`Benchmark source ${String(input)} returned HTTP ${response.status}`);
   responses.set(String(input), { body, headers, status: response.status });
+  if (!response.ok) {
+    console.warn(JSON.stringify({ event: 'benchmark_source_failed', url: String(input), status: response.status }));
+  }
   return new Response(body, { headers, status: response.status });
 };
 const replayFetch: typeof fetch = async (input, init) => {

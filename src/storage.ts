@@ -1,12 +1,9 @@
 import { HALLS, type Meal, type Snapshot, type SnapshotStore } from './types';
-import { isValidDate } from './dates';
+import { isValidDate, validTime } from './dates';
 
 export const SNAPSHOT_KEY = 'snapshot:v1';
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-function validTime(value: unknown): boolean {
-  return typeof value === 'string' && /^(?:[01]?\d|2[0-3]):[0-5]\d$/.test(value);
 }
 
 export function validMeals(value: unknown): value is Meal[] {

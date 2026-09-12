@@ -175,7 +175,7 @@ export const refreshPomona: RefreshHall = async (hall, dates, previous, fetcher)
     if (response.status === 304) {
       const covered = prior ? dates.filter(date => prior.days.some(day => day.date === date)).length : 0;
       // A shorter cached window must not hide newly requested dates behind an unchanged ETag.
-      if (!prior || (covered > 0 && covered < dates.length)) {
+      if (!prior || covered < dates.length) {
         response = await request(url, undefined, fetcher, false, controller.signal);
       } else {
         return { days: prior.days.filter(day => dates.includes(day.date)), state: prior };

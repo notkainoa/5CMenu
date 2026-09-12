@@ -9,6 +9,9 @@ export function californiaDate(now: Date): string {
 export function isValidDate(value: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(`${value}T12:00:00Z`)) && new Date(`${value}T12:00:00Z`).toISOString().slice(0, 10) === value;
 }
+export function validTime(value: unknown): value is string {
+  return typeof value === 'string' && /^(?:[01]?\d|2[0-3]):[0-5]\d$/.test(value);
+}
 export function supportedDates(now: Date): string[] {
   const today = californiaDate(now);
   // Advance calendar dates in UTC, not 24-hour steps in California across DST.

@@ -118,6 +118,23 @@ test('Pomona refetches when a 304 cache covers only part of the requested window
   assert.deepEqual(expanded.days.map(day => day.date), ['2026-09-06', '2026-09-07']);
 });
 
+test('Pomona refetches on 304 when cached days miss the entire requested window', async () => {
+  const closed = { '@servedate': '20260503', '@mealperiodname': 'Closed', '@menubulletin': 'Closed', recipes: { closed: 'date' } };
+  const first = await refreshPomona('oldenborg', ['2026-05-03'], undefined, async () => new Response(pomonaJsonp(closed), {
+    headers: { 'content-type': 'application/json', etag: '"old"' },
+  }));
+  const statuses: number[] = [];
+  await refreshPomona('oldenborg', ['2026-09-06'], first.state, async (_input, init) => {
+    if (new Headers(init?.headers).has('if-none-match')) {
+      statuses.push(304);
+      return new Response(null, { status: 304 });
+    }
+    statuses.push(200);
+    return new Response(pomonaJsonp(closed), { headers: { 'content-type': 'application/json' } });
+  });
+  assert.deepEqual(statuses, [304, 200]);
+});
+
 test('Pomona rejects bad wrappers and recipe records instead of publishing empty menus', async () => {
   await assert.rejects(
     refreshPomona('frank', ['2026-09-06'], undefined, async () => new Response('{}', { headers: { 'content-type': 'application/json' } })),
