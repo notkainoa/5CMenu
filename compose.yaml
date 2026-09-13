@@ -1,0 +1,9 @@
+services:
+  menu-web:
+    build: .
+    environment:
+      PHP_CLI_SERVER_WORKERS: "8"
+    ports:
+      - "${PORT:-8080}:8080"
+    volumes:
+      - .:/app:ro

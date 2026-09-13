@@ -15,11 +15,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
  */
 
-include_once "SodexoParser.php";
-include_once "BonAppetitParser.php";
-include_once "PomonaParser.php";
-include_once "PomonaJSONParser.php";
-include_once "DatabaseMenuParser.php";
+include_once __DIR__ . "/SodexoParser.php";
+include_once __DIR__ . "/BonAppetitParser.php";
+include_once __DIR__ . "/BonAppetitWebParser.php";
+include_once __DIR__ . "/PomonaParser.php";
+include_once __DIR__ . "/PomonaJSONParser.php";
+
+$databaseMenuParserPath = __DIR__ . "/DatabaseMenuParser.php";
+if(file_exists($databaseMenuParserPath)){
+    include_once $databaseMenuParserPath;
+}
 
 function param($key, $default = NULL){
     return isset($_POST[$key]) ? $_POST[$key] : (isset($_GET[$key]) ? $_GET[$key] : $default);
@@ -34,17 +39,22 @@ function run($action){
         $explodedStartDate = $startDateParam == null ? [] : preg_split("/[^0-9]+/", $startDateParam);
         $startTime = count($explodedStartDate) < 3 ? $startTime : mktime(0, 0, 0, $explodedStartDate[1], $explodedStartDate[2], $explodedStartDate[0]);
     }
+    if(!$startTime){$startTime = time();}
 
     $startDate = date('m/d/Y', $startTime);
-    $startDateBonAppetit = date('Y-m-d', $startTime);
-    $diningHall = strtolower(param("diningHall"));
+    $diningHall = strtolower((string)param("diningHall", ""));
+    if($diningHall == "mallot" || $diningHall == "mallott"){
+        $diningHall = "malott";
+    }
+    if($diningHall == "mcconnell"){$diningHall = "mcconnel";}
     $parser = null;
 
-    $allowCheckDatabase = strtolower(param("source")) != "sodexo";
-    $shouldCheckDatabase = strtolower(param("source")) == "database";
+    $source = strtolower((string)param("source", ""));
+    $allowCheckDatabase = !in_array($source, array("sodexo", "live", "web"));
+    $shouldCheckDatabase = $source == "database";
 
     // Note: This check is for internal stuff, it doesn't have anything to do with getting the menu!
-    if($shouldCheckDatabase || $allowCheckDatabase){
+    if(class_exists("DatabaseMenuParser") && ($shouldCheckDatabase || $allowCheckDatabase)){
         $parser = new DatabaseMenuParser(strtolower($diningHall), $startTime);
         $parser->fetch();
         $parserInfo = $parser->getInfo();
@@ -64,15 +74,24 @@ function run($action){
             $parser = new SodexoParser("hoch", "https://menus.sodexomyway.com/BiteMenu/MenuOnly?menuId=15258&locationId=13147001&startdate=$startDate", param("developer") === "true");
             break;
         case "malott":
-            $parser = new BonAppetitParser("https://legacy.cafebonappetit.com/api/2/menus?format=json&cafe=2253&date=$startDateBonAppetit", "2253", "mallott");
+            $parser = new BonAppetitWebParser("malott", array(
+                "https://scripps.cafebonappetit.com/cafe/malott-dining-commons/{date}/",
+                "https://scripps.cafebonappetit.com/"
+            ), $startTime);
             //old menuid 288
             //11082
             break;
         case "mcconnel":
-            $parser = new BonAppetitParser("https://legacy.cafebonappetit.com/api/2/menus?format=json&cafe=219&date=$startDateBonAppetit", "219", "mcconnel");
+            $parser = new BonAppetitWebParser("mcconnel", array(
+                "https://pitzer.cafebonappetit.com/cafe/mcconnell-bistro/{date}/",
+                "https://www.pitzer.edu/student-life/living-pitzer/dining"
+            ), $startTime);
             break;
         case "collins":
-            $parser = new BonAppetitParser("https://legacy.cafebonappetit.com/api/2/menus?format=json&cafe=50&date=$startDateBonAppetit", "50", "collins");
+            $parser = new BonAppetitWebParser("collins", array(
+                "https://collins-cmc.cafebonappetit.com/cafe/collins/{date}/",
+                "https://www.cmc.edu/student-life/residential-life/dining"
+            ), $startTime);
             break;
         case "frank":
             $parser = new PomonaParser("https://www.pomona.edu/administration/dining/menus/frank", "frank", $startTime);
@@ -83,6 +102,10 @@ function run($action){
         case "oldenborg":
             $parser = new PomonaParser("https://www.pomona.edu/administration/dining/menus/oldenborg", "oldenborg", $startTime);
             break;
+    }
+
+    if($parser == null){
+        throw new InvalidArgumentException("Unknown dining hall: $diningHall");
     }
 
     $parser->fetch();

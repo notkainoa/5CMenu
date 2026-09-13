@@ -149,3 +149,34 @@ References: [Workers limits](https://developers.cloudflare.com/workers/platform/
 Provider modules have independent tests and share the contract in `src/types.ts`. To repair a provider, inspect its new public format, update the adapter and fixture tests, then run the full checks. No client update should be needed if the public JSON contract remains unchanged.
 
 See [overhaul-plan.md](overhaul-plan.md) for requirements, task dependencies, and the subagent strategy. See [docs/verification.md](docs/verification.md) for current evidence and deployment limits. The PHP source and Apache license are retained.
+
+## Historical PHP checker
+
+The legacy PHP parsers, Docker Compose file, and browser checker from GitHub `main` remain in the tree as reference. They are not deployed to Cloudflare. The PHP entry point is the `run` function in `api/menuParser.php`.
+
+Run the PHP API and browser checker together with Docker:
+
+```sh
+docker compose up --build
+```
+
+Open http://localhost:8080. The page requests every supported dining hall from the local PHP API, renders each meal and station, and marks empty or invalid responses as failures.
+
+If port 8080 is already in use, choose another host port:
+
+```sh
+PORT=8055 docker compose up --build
+```
+
+Run the automated API check in another terminal:
+
+```sh
+node tests/ApiSmokeTest.mjs http://127.0.0.1:8080
+```
+
+The focused Bon Appétit parser checks run without a local PHP installation:
+
+```sh
+docker run --rm -v "$PWD:/app" -w /app php:8.4-cli-alpine php tests/BonAppetitWebParserTest.php
+docker run --rm -v "$PWD:/app" -w /app php:8.4-cli-alpine php tests/LiveBonAppetitCheck.php
+```

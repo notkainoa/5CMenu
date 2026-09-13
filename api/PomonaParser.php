@@ -41,6 +41,20 @@ class PomonaParser implements DiningHallParser{
     public $info = null;
     function fetch(){
 
+        if($this->site === "oldenborg"){
+            $date = date("Y-m-d", $this->startTime);
+            $this->info = array(
+                "menu" => array(array(
+                    "date" => $date,
+                    "time" => strtotime($date . " 00:00:00"),
+                    "open" => false,
+                    "messages" => array("screenMessage" => "Oldenborg Dining Hall is closed.")
+                )),
+                "diningHallOpen" => false
+            );
+            return;
+        }
+
         $arrContextOptions=array(
             "ssl"=>array(
                 "verify_peer"=>false,

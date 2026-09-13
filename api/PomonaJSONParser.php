@@ -131,7 +131,7 @@ class PomonaJSONParser{
         return array("menu" => $arr, "station" => $station, "stationOriginal" => $station);
     }
 
-    public function tryFindMerged($station){
+    public static function tryFindMerged($station){
         foreach(array_keys(PomonaJSONParser::COMBINED_STATIONS) as $key){
             foreach(PomonaJSONParser::COMBINED_STATIONS[$key] as $value){
                 if(strtolower($station) == strtolower($value)){
@@ -140,6 +140,59 @@ class PomonaJSONParser{
             }
         }
         return $station;
+    }
+
+    private function markDateClosed(&$formattedMeals, $date){
+        if(!isset($formattedMeals[$date])){$formattedMeals[$date] = "CLOSED";}
+    }
+
+    private function addMenuItem(&$formattedMeals, $date, $mealType, $menuItem){
+        if(!is_array($menuItem)){return;}
+        if(isset($menuItem["@displayonwebsite"]) && strtolower($menuItem["@displayonwebsite"]) !== "yes"){return;}
+
+        $station = self::tryFindMerged(isset($menuItem["@category"]) ? $menuItem["@category"] : "Station");
+        $itemName = trim(isset($menuItem["@shortName"]) ? $menuItem["@shortName"] : "");
+        if($itemName === ""){return;}
+
+        if(!isset($formattedMeals[$date]) || $formattedMeals[$date] === "CLOSED"){$formattedMeals[$date] = array();}
+        if(!isset($formattedMeals[$date][$mealType])){$formattedMeals[$date][$mealType] = array();}
+        if(!isset($formattedMeals[$date][$mealType][$station])){$formattedMeals[$date][$mealType][$station] = array();}
+
+        $vegan = false;
+        $vegetarian = false;
+        $dietaryChoices = isset($menuItem["dietaryChoices"]["dietaryChoice"]) ? $menuItem["dietaryChoices"]["dietaryChoice"] : array();
+        if($this->isAssoc($dietaryChoices)){$dietaryChoices = array($dietaryChoices);}
+        foreach($dietaryChoices as $choice){
+            if(!is_array($choice) || strtolower(isset($choice["#text"]) ? $choice["#text"] : "") !== "yes"){continue;}
+            $choiceName = strtolower(isset($choice["@id"]) ? $choice["@id"] : "");
+            if($choiceName === "vegan"){$vegan = true; $vegetarian = true;}
+            if($choiceName === "vegetarian"){$vegetarian = true;}
+        }
+
+        $nutrientValues = isset($menuItem["@nutrients"]) ? explode("|", $menuItem["@nutrients"]) : array();
+        $calories = isset($nutrientValues[0]) && is_numeric(trim($nutrientValues[0])) ? intval(round(floatval(trim($nutrientValues[0])))) : 0;
+
+        $formattedMeals[$date][$mealType][$station][] = array(
+            "name" => $itemName,
+            "description" => trim(isset($menuItem["@itemDailyComment"]) && $menuItem["@itemDailyComment"] !== "" ? $menuItem["@itemDailyComment"] : (isset($menuItem["@description"]) ? $menuItem["@description"] : "")),
+            "vegan" => $vegan,
+            "vegetarian" => $vegetarian,
+            "calories" => $calories
+        );
+    }
+
+    private function defaultHoursForMeal($date, $mealType){
+        $dayOfWeek = intval(date("N", $date));
+        $isWeekend = $dayOfWeek >= 6;
+        $meal = strtolower($mealType);
+
+        if(strpos($meal, "breakfast") !== false){
+            return array(7, 30, $this->site === "frary" && !$isWeekend ? 10 : 9, 30);
+        }
+        if(strpos($meal, "brunch") !== false){return array(10, 30, 13, 30);}
+        if(strpos($meal, "lunch") !== false){return array(11, 0, 13, 30);}
+        if(strpos($meal, "dinner") !== false){return array(17, 0, 19, 30);}
+        return array(0, 0, 0, 0);
     }
 
     public $json = null;
@@ -166,52 +219,16 @@ class PomonaJSONParser{
         // Find Start time from https://www.pomona.edu/administration/dining/menus/...
         $hoursInfo = PomonaParser::fetchHoursInfo($this->site);
 
-        function modifyFormattedMealsWithClosed(&$formattedMeals, $date){
-            $formattedMeals[$date] = "CLOSED";
-            return $formattedMeals;
-        }
-
-        function modifyFormattedMeals(&$formattedMeals, $date, $mealType, $menuItem){
-            $station = $menuItem["@category"];
-            $itemName = $menuItem["@shortName"];
-            $displayOnSite = $menuItem["@displayonwebsite"];
-
-            $station = PomonaJSONParser::tryFindMerged($station);
-
-            //echo "Making $date $mealType $station -$itemName- <br>";
-
-            if(!array_key_exists($date, $formattedMeals)){
-                $formattedMeals[$date] = array();
-            }
-            if(!array_key_exists($mealType, $formattedMeals[$date])){
-                $formattedMeals[$date][$mealType] = array();
-            }
-            if(!array_key_exists($station, $formattedMeals[$date][$mealType])){
-                $formattedMeals[$date][$mealType][$station] = array();
-            }
-
-            $formattedMeals[$date][$mealType][$station][] = ["name" => $itemName];
-
-            /*inside $menuItem["dietaryChoices"]: {
-            "dietaryChoice": [
-              {
-                "@id": "Vegetarian",
-                "#text": "Yes"
-              },*/
-
-            return $formattedMeals;
-        }
-
         foreach($meals as $meal){
             $date = $meal["@servedate"];
             $mealType = $meal["@mealperiodname"];
             $menuBulletin = $meal["@menubulletin"];
             //dining hall is closed
             if(strtolower($menuBulletin) == "closed" && strtolower($mealType) == "closed"){
-                $formattedMeals = modifyFormattedMealsWithClosed($formattedMeals, $date);
+                $this->markDateClosed($formattedMeals, $date);
                 continue;
             }
-            $menu = $meal["recipes"]["recipe"];
+            $menu = isset($meal["recipes"]["recipe"]) ? $meal["recipes"]["recipe"] : array();
 
             //$mealType === "Closed" if meal is closed
             //echo "In $mealType for $date<br>";
@@ -219,11 +236,11 @@ class PomonaJSONParser{
             //print_r($menu);
 
             if($this->isAssoc($menu)){
-                $formattedMeals = modifyFormattedMeals($formattedMeals, $date, $mealType, $menu);
+                $this->addMenuItem($formattedMeals, $date, $mealType, $menu);
             }
             else{
                 foreach($menu as $menuItem){
-                    $formattedMeals = modifyFormattedMeals($formattedMeals, $date, $mealType, $menuItem);
+                    $this->addMenuItem($formattedMeals, $date, $mealType, $menuItem);
                 }
             }
         }
@@ -254,11 +271,7 @@ class PomonaJSONParser{
                     $stationMenu = array();
 
                     foreach($formattedMeals[$date][$mealType][$station] as $menuItem){
-                        $infoToAdd = array(
-                            "name" => $menuItem["name"]
-                        );
-
-                        $stationMenu[] = $infoToAdd;
+                        $stationMenu[] = $menuItem;
                     }
 
                     $stationInfoArr[] = ["station" => $station, "stationOriginal" => $station, "menu" => $stationMenu];
@@ -274,14 +287,15 @@ class PomonaJSONParser{
                     return $i1 > $i2 ? 1 : -1;
                 });
 
-                $mealTimeDate = date("Y-m-d", "$year-$month-$day");
+                $mealTime = mktime(0, 0, 0, $month, $day, $year);
+                $dayType = strtolower(date("D", $mealTime));
 
-                $dayType = strtolower(date("D", $mealTimeDate));
+                $hours = PomonaParser::getHoursForMeal($hoursInfo, $dayType, strtolower($mealType));
+                if(!is_array($hours) || count($hours) < 4){$hours = $this->defaultHoursForMeal($mealTime, $mealType);}
+                list($startHour, $startMinute, $endHour, $endMinute) = $hours;
 
-                list($startHour, $startMinute, $endHour, $endMinute) = PomonaParser::getHoursForMeal($hoursInfo, $dayType, strtolower($mealType));
-
-                $startTime = PomonaJSONParser::makeTime($year, $month, $day, $startHour, $startMinute);
-                $endTime = PomonaJSONParser::makeTime($year, $month, $day, $endHour, $endMinute);
+                $startTime = self::makeTime($year, $month, $day, $startHour, $startMinute);
+                $endTime = self::makeTime($year, $month, $day, $endHour, $endMinute);
 
                 $meals[strtolower($mealType)] = ["meal" => $mealType, "stations" => $stationInfoArr, "startTime" => $startTime, "endTime" => $endTime];
 
@@ -433,7 +447,7 @@ class PomonaJSONParser{
         return $this->info;
     }
 
-    function makeTime($year, $month, $day, $hour, $minute){
+    static function makeTime($year, $month, $day, $hour, $minute){
         return mktime($hour, $minute, 0, $month, $day, $year);
     }
 
