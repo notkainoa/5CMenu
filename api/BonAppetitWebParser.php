@@ -739,8 +739,7 @@ class BonAppetitWebParser implements DiningHallParser{
 
     private function shouldShowAll(){
         if(!isset($_GET["showAll"])){return false;}
-        $value = $_GET["showAll"];
-        return $value === true || $value === 1 || $value === "1" || $value === "true";
+        return filter_var($_GET["showAll"], FILTER_VALIDATE_BOOLEAN);
     }
 
     private function canonicalStationName($name){
