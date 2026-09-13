@@ -12,8 +12,9 @@ import type {
 } from '../types';
 import { boundedText } from './response';
 import { validTime } from '../dates';
+import { refineBonAppetitMeals, type CatalogItem } from './bon-appetit-catalog';
 
-const STATE_VERSION = 2;
+const STATE_VERSION = 3;
 const PROVIDER = 'bon-appetit';
 
 const CAFES = {
@@ -190,14 +191,19 @@ function calorieValue(value: unknown): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
-function parseItem(value: unknown): MenuItem {
+function parseItem(value: unknown): CatalogItem {
   if (!isRecord(value) || typeof value.label !== 'string') throw new Error('Bon Appétit menu item lacks a label');
   const name = textContent(value.label);
   if (!name) throw new Error('Bon Appétit menu item has an empty label');
-  const item: MenuItem = { name };
+  const item: CatalogItem = { name };
   if (typeof value.description === 'string') {
     const description = textContent(value.description);
     if (description) item.description = description;
+  }
+  if ('special' in value) item.special = value.special;
+  if (typeof value.ingredients === 'string') {
+    const ingredients = textContent(value.ingredients);
+    if (ingredients) item.ingredients = ingredients;
   }
 
   const iconLabels = new Set<string>();
@@ -320,7 +326,8 @@ export function parseBonAppetitPage(html: string, requestedDate: string, hall?: 
   if (!isRecord(itemData)) throw new Error('Bamco.menu_items is not an object');
   const mealSections = matchingSections.filter(section => !isClosedSection(section));
   const parsedMeals = mealSections.map(section => mealFromSection(section, itemData));
-  const meals = hall === 'collins' ? collinsSpecialHours(html, requestedDate, parsedMeals) : parsedMeals;
+  const datedMeals = hall === 'collins' ? collinsSpecialHours(html, requestedDate, parsedMeals) : parsedMeals;
+  const meals = refineBonAppetitMeals(datedMeals);
   const itemCount = meals.reduce((sum, meal) => sum + meal.stations.reduce((stationSum, station) => stationSum + station.items.length, 0), 0);
   if (itemCount === 0) throw new Error('Bon Appétit page has dated dayparts but no menu items');
   return { date: requestedDate, status: 'ok', meals };

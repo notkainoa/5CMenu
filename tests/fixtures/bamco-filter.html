@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<body>
+<script>
+    Bamco = (typeof Bamco !== "undefined") ? Bamco : {};
+    Bamco.menu_items = {
+        "1": {"id":"1","label":"grass fed beef smash burger","description":"","special":1,"ingredients":"beef, salt, pepper, oil","cor_icon":{},"nutrition":{"kcal":""}},
+        "2": {"id":"2","label":"grilled halal chicken","description":"","special":1,"ingredients":"chicken, oil, salt","cor_icon":{},"nutrition":{"kcal":""}},
+        "3": {"id":"3","label":"lettuce, tomatoes, pickle, pepperoncini's, red onions, cheese, guacamole, and mayo","description":"","special":1,"ingredients":"","cor_icon":{},"nutrition":{"kcal":""}},
+        "4": {"id":"4","label":"applewood bacon, mushrooms, caramelized onions","description":"","special":1,"ingredients":"","cor_icon":{},"nutrition":{"kcal":""}},
+        "5": {"id":"5","label":"french fries","description":"","special":1,"ingredients":"potato, oil, salt","cor_icon":{},"nutrition":{"kcal":""}},
+        "6": {"id":"6","label":"live grill - made fresh to order","description":"","special":1,"ingredients":"","cor_icon":{},"nutrition":{"kcal":""}},
+        "7": {"id":"7","label":"onion","description":"","special":0,"ingredients":"","cor_icon":{"1":"Vegan"},"nutrition":{"kcal":"5"}},
+        "8": {"id":"8","label":"beef patty","description":"","special":0,"ingredients":"","cor_icon":{},"nutrition":{"kcal":"310"}},
+        "9": {"id":"9","label":"pitzer pasta bar","description":"","special":1,"ingredients":"","cor_icon":{},"nutrition":{"kcal":""}},
+        "10": {"id":"10","label":"halal herbed chicken","description":"","special":1,"ingredients":"","cor_icon":{},"nutrition":{"kcal":""}},
+        "11": {"id":"11","label":"marinara sauce","description":"","special":1,"ingredients":"","cor_icon":{},"nutrition":{"kcal":""}},
+        "12": {"id":"12","label":"steamed spinach, kale, shallots","description":"","special":1,"ingredients":"","cor_icon":{"1":"Vegan"},"nutrition":{"kcal":""}},
+        "13": {"id":"13","label":"lemon bars","description":"","special":1,"ingredients":"sugar, cage-free egg, lemon juice, flour, butter","cor_icon":{"1":"Vegetarian"},"nutrition":{"kcal":""}},
+        "14": {"id":"14","label":"garlic parsley breakfast potatoes","description":"","special":1,"ingredients":"potato, oil, salt, parsley, garlic, smoked paprika, black pepper","cor_icon":{"1":"Vegan"},"nutrition":{"kcal":""}},
+        "15": {"id":"15","label":"potato hash browns","description":"with oil, salt, black pepper","special":1,"ingredients":"potato, oil, salt","cor_icon":{"1":"Vegan"},"nutrition":{"kcal":""}},
+        "16": {"id":"16","label":"black beans","description":"1/4 cup","special":0,"ingredients":"","cor_icon":{"1":"Vegan"},"nutrition":{"kcal":"70"}},
+        "17": {"id":"17","label":"scrambled eggs","description":"","special":0,"ingredients":"egg, salt","cor_icon":{"1":"Vegetarian"},"nutrition":{"kcal":"180"}},
+        "18": {"id":"18","label":"house-made scones","description":"","special":0,"ingredients":"","cor_icon":{},"nutrition":{"kcal":"210"}},
+        "19": {"id":"19","label":"rye bread","description":"","special":0,"ingredients":"","cor_icon":{},"nutrition":{"kcal":"150"}},
+        "20": {"id":"20","label":"Cheerios","description":"","special":0,"ingredients":"","cor_icon":{},"nutrition":{"kcal":"100"}},
+        "21": {"id":"21","label":"almonds","description":"","special":0,"ingredients":"","cor_icon":{},"nutrition":{"kcal":"100"}},
+        "22": {"id":"22","label":"peach vanilla oat","description":"with peach, oat milk, agave, vanilla","special":1,"ingredients":"","cor_icon":{"1":"Vegan"},"nutrition":{"kcal":""}},
+        "23": {"id":"23","label":"coca-cola","description":"","special":0,"ingredients":"","cor_icon":{},"nutrition":{"kcal":"160"}},
+        "24": {"id":"24","label":"tofu","description":"","special":0,"ingredients":"","cor_icon":{},"nutrition":{"kcal":"45"}},
+        "25": {"id":"25","label":"peas","description":"","special":0,"ingredients":"","cor_icon":{},"nutrition":{"kcal":"20"}},
+        "26": {"id":"26","label":"spinach","description":"","special":0,"ingredients":"","cor_icon":{"1":"Vegan"},"nutrition":{"kcal":"5"}},
+        "27": {"id":"27","label":"build your own omelet burrito","description":"tomatoes, onions, jalapeños","special":1,"ingredients":"","cor_icon":{},"nutrition":{"kcal":""}},
+        "28": {"id":"28","label":"vegan egg available upon request","description":"","special":1,"ingredients":"","cor_icon":{"1":"Vegan"},"nutrition":{"kcal":""}},
+        "29": {"id":"29","label":"tres leches cake","description":"","special":0,"ingredients":"","cor_icon":{"1":"Vegetarian"},"nutrition":{"kcal":"550"}},
+        "30": {"id":"30","label":"chocolate chip cookies","description":"","special":1,"ingredients":"flour, sugar, butter","cor_icon":{"1":"Vegetarian"},"nutrition":{"kcal":""}},
+        "31": {"id":"31","label":"almond overnight oats","description":"toppings: roasted apple, roasted mushrooms, sautéed spinach, butternut squash","special":1,"ingredients":"","cor_icon":{"1":"Vegan"},"nutrition":{"kcal":""}},
+        "32": {"id":"32","label":"roasted apple, roasted mushrooms, sautéed spinach, butternut squash","description":"","special":1,"ingredients":"","cor_icon":{"1":"Vegan"},"nutrition":{"kcal":""}},
+        "33": {"id":"33","label":"hot oatmeal","description":"","special":1,"ingredients":"water, oats","cor_icon":{"1":"Vegan"},"nutrition":{"kcal":""}},
+        "34": {"id":"34","label":"cauliflower crust pepperoni pizza","description":"","special":0,"ingredients":"","cor_icon":{},"nutrition":{"kcal":"390"}},
+        "35": {"id":"35","label":"dried oregano","description":"","special":0,"ingredients":"","cor_icon":{"1":"Vegan"},"nutrition":{"kcal":"0"}},
+        "36": {"id":"36","label":"self serve salad bar","description":"","special":1,"ingredients":"","cor_icon":{"1":"Vegan"},"nutrition":{"kcal":""}},
+        "37": {"id":"37","label":"artichoke hearts","description":"","special":0,"ingredients":"","cor_icon":{"1":"Vegan"},"nutrition":{"kcal":"15"}}
+    };
+    Bamco.dayparts = Bamco.dayparts || {};
+    Bamco.dayparts['1'] = {
+        "label": "Breakfast",
+        "starttime": "07:00",
+        "endtime": "10:00",
+        "stations": [
+            {"label":"breakfast","items":["17","16"]},
+            {"label":"comfort","items":["14","15"]},
+            {"label":"breakfast toppings","items":["21"]},
+            {"label":"cereal","items":["20"]},
+            {"label":"deli bar","items":["19"]},
+            {"label":"breakfast grill","items":["26"]},
+            {"label":"grill","items":["27","28"]},
+            {"label":"hot cereal","items":["33","31","32"]},
+            {"label":"ovens","items":["18"]},
+            {"label":"ovens2","items":["34","35"]},
+            {"label":"sweets","items":["30","29"]},
+            {"label":"juice and smoothie bar","items":["22","23"]},
+            {"label":"salad bar","items":["36","37"]}
+        ]
+    };
+    Bamco.dayparts['2'] = {
+        "label": "Dinner",
+        "starttime": "17:00",
+        "endtime": "20:00",
+        "stations": [
+            {"label":"grill","items":["6","1","2","3","4","5","7","8"]},
+            {"label":"salad bar","items":["37"]},
+            {"label":"global","items":["9","10","11"]},
+            {"label":"comfort","items":["12"]},
+            {"label":"sweets","items":["13"]},
+            {"label":"breakfast","items":["25"]},
+            {"label":"chef's table: pasta bar","items":["24"]}
+        ]
+    };
+</script>
+</body>
+</html>
