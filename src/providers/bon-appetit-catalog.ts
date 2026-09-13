@@ -321,7 +321,6 @@ function groupStations(stations: CatalogStation[], meal: string): CatalogStation
       order.push(mergeKey);
       continue;
     }
-    if (mergeKey === canonical) existing.name = station.name;
     for (const item of station.items) {
       if (!existing.items.some(current => current.name.toLowerCase() === item.name.toLowerCase())) {
         existing.items.push({ ...item });

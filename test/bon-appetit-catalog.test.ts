@@ -166,6 +166,20 @@ describe('refineBonAppetitMeals', () => {
     ]);
   });
 
+  it('keeps the first station name when two canonical stations only differ by casing', () => {
+    const meals = refineBonAppetitMeals([
+      {
+        name: 'Dinner',
+        stations: [
+          { name: 'Grill', items: [item('smash burger', { special: 1 })] },
+          { name: 'GRILL', items: [item('french fries', { special: 1 })] },
+        ],
+      },
+    ]);
+    assert.equal(meals[0].stations[0].name, 'Grill');
+    assert.deepEqual(meals[0].stations[0].items.map(entry => entry.name), ['smash burger', 'french fries']);
+  });
+
   it('orders known stations the same way as the PHP filter', () => {
     const meals = refineBonAppetitMeals([
       {
