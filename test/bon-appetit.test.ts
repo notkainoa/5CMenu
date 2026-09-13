@@ -17,7 +17,8 @@ function fixture(date = DATE, itemSuffix = ''): string {
       ordered_cor_icon: { first: { label: 'Vegetarian' } }, nutrition: { kcal: '0' },
     },
     '103': {
-      label: `chef&#039;s choice${itemSuffix}`, description: 'No nutrition published', cor_icon: {}, nutrition: { kcal: '' },
+      label: `chef&#039;s choice${itemSuffix}`, description: 'No nutrition published',
+      ordered_cor_icon: { first: { label: 'Vegetarian' } }, nutrition: { kcal: '180' },
     },
   };
   return `<!doctype html><html><body>
@@ -82,7 +83,7 @@ describe('parseBonAppetitPage', () => {
             { name: "Chef's Table & Grill", items: [
               { name: 'tofu & greens', description: 'Ginger sauce', vegan: true, calories: 240 },
             ] },
-            { name: 'Pantry', items: [{ name: "chef's choice", description: 'No nutrition published' }] },
+            { name: 'Pantry', items: [{ name: "chef's choice", description: 'No nutrition published', vegetarian: true, calories: 180 }] },
           ],
         },
         {
@@ -92,7 +93,7 @@ describe('parseBonAppetitPage', () => {
       ],
     });
     assert.equal(day?.meals[0].stations[0].items[0].vegetarian, undefined);
-    assert.equal(day?.meals[0].stations[1].items[0].calories, undefined);
+    assert.equal(day?.meals[0].stations[1].items[0].calories, 180);
   });
 
   it('does not substitute sections belonging to another date', () => {

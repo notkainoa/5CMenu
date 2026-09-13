@@ -110,6 +110,53 @@ describe('refineBonAppetitMeals', () => {
     assert.match(names['garlic parsley breakfast potatoes'] ?? '', /smoked paprika/);
   });
 
+  it('names a merged alias after the canonical station even when the alias comes first', () => {
+    const meals = refineBonAppetitMeals([
+      {
+        name: 'Breakfast',
+        stations: [
+          { name: 'ovens2', items: [item('pepperoni pizza', { special: 0 })] },
+          { name: 'Ovens', items: [item('house-made scones', { special: 0 })] },
+        ],
+      },
+    ]);
+    assert.deepEqual(meals[0].stations.map(station => [station.name, station.items.map(entry => entry.name)]), [
+      ['Ovens', ['pepperoni pizza', 'house-made scones']],
+    ]);
+  });
+
+  it('orders known stations the same way as the PHP filter', () => {
+    const meals = refineBonAppetitMeals([
+      {
+        name: 'Dinner',
+        stations: [
+          { name: 'Sweets', items: [item('lemon bars', { special: 0 })] },
+          { name: 'Grill', items: [item('smash burger', { special: 1 })] },
+        ],
+      },
+    ]);
+    assert.deepEqual(meals[0].stations.map(station => station.name), ['Grill', 'Sweets']);
+  });
+
+  it('keeps a four-part cooked plate as a dish instead of folding it away', () => {
+    const meals = refineBonAppetitMeals([
+      {
+        name: 'Dinner',
+        stations: [{
+          name: 'Comfort',
+          items: [
+            item('roasted chicken, mashed potatoes, green beans, gravy', { special: 1 }),
+            item('roasted apple, roasted mushrooms, sautéed spinach, butternut squash', { special: 1 }),
+          ],
+        }],
+      },
+    ]);
+    assert.deepEqual(meals[0].stations[0].items.map(entry => entry.name), [
+      'roasted chicken, mashed potatoes, green beans, gravy',
+    ]);
+    assert.match(meals[0].stations[0].items[0].description ?? '', /roasted apple/);
+  });
+
   it('hides a leftover breakfast station at dinner', () => {
     const meals = refineBonAppetitMeals([
       { name: 'Dinner', stations: [{ name: 'Breakfast', items: [item('peas', { special: 0 })] }] },

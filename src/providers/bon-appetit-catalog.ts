@@ -21,6 +21,11 @@ const PRESENCE_STATIONS = new Set(['salad bar']);
 const JUICE_STATIONS = new Set(['juice and smoothie bar', 'juice bar']);
 const SWEETS_STATIONS = new Set(['sweets', 'bakery', 'breakfast bakery', 'ovens', 'ovens2']);
 const COMBINED_STATIONS: Record<string, string> = { ovens2: 'ovens', 'grill special': 'grill', 'chocolate chip cookies': 'sweets' };
+const ORDERED_STATIONS = [
+  "chef's table", 'main plate', 'breakfast', 'breakfast @ home', 'breakfast @home', '@home', '@ home',
+  'breakfast options', 'options', 'expo', 'global', 'comfort', 'grill', 'herbivore', 'oasis',
+  'plant forward', 'simply oasis', 'hot cereal', 'ovens', 'sweets', 'stock pot', 'stocks',
+];
 
 const BARE_TOPPINGS = new Set([
   'spinach', 'onion', 'onions', 'lettuce', 'tomato', 'tomatoes', 'pepper', 'peppers',
@@ -117,13 +122,22 @@ function isBoilerplateInstruction(text: string): boolean {
   return /^(live grill\s*-+\s*)?made (fresh )?to order$/i.test(text.trim());
 }
 
+function isCookedDishName(name: string): boolean {
+  return /\b(grilled|roasted|steamed|baked|sauteed|sautéed|fried|braised|poached|smoked|charbroil|charred|seared|stuffed|glazed|marinated)\b/i.test(name);
+}
+
+function isComposedPlate(name: string, segmentCount: number): boolean {
+  if (!isCookedDishName(name)) return false;
+  if (segmentCount < 4) return true;
+  return /\b(chicken|beef|steak|pork|turkey|fish|salmon|cod|tofu|tempeh|potato|potatoes|mashed|rice|gravy|pasta|noodles)\b/i.test(name);
+}
+
 function isComponentList(name: string): boolean {
   const segments = name.split(',').map(part => part.trim()).filter(Boolean);
   if (segments.length < 3) return false;
   const allShort = segments.every(segment => segment.length <= 50);
+  if (isComposedPlate(name, segments.length)) return false;
   if (segments.length >= 4 && allShort) return true;
-  if (/\b(grilled|roasted|steamed|baked|sauteed|sautéed|fried|braised|poached|smoked|charbroil|charred|seared|stuffed|glazed|marinated)\b/i.test(name) &&
-    segments.length < 4) return false;
   return segments.length === 3 && allShort;
 }
 
@@ -268,6 +282,18 @@ function mergeStationKey(canonical: string): string {
   return COMBINED_STATIONS[canonical] ?? canonical;
 }
 
+function prettyStationName(canonical: string): string {
+  return canonical.replace(/\b([a-z])/g, char => char.toUpperCase())
+    .replace(/ And /g, ' and ')
+    .replace(/@home/gi, '@Home')
+    .replace(/@ Home/g, '@Home');
+}
+
+function stationRank(mergeKey: string): number {
+  const index = ORDERED_STATIONS.indexOf(mergeKey);
+  return index === -1 ? 1000 : index;
+}
+
 function refineStation(station: CatalogStation, meal: string): Station | undefined {
   const canonical = canonicalStationName(station.name);
   if (shouldHideStation(canonical, meal)) return undefined;
@@ -291,10 +317,12 @@ export function refineBonAppetitMeals(meals: Array<Meal & { stations: CatalogSta
     for (const station of meal.stations) {
       const refinedStation = refineStation(station, key);
       if (!refinedStation) continue;
-      const mergeKey = mergeStationKey(canonicalStationName(station.name));
+      const canonical = canonicalStationName(station.name);
+      const mergeKey = mergeStationKey(canonical);
       const existing = merged.get(mergeKey);
       if (!existing) {
-        merged.set(mergeKey, refinedStation);
+        const name = mergeKey === canonical ? refinedStation.name : prettyStationName(mergeKey);
+        merged.set(mergeKey, { ...refinedStation, name });
         order.push(mergeKey);
         continue;
       }
@@ -304,6 +332,7 @@ export function refineBonAppetitMeals(meals: Array<Meal & { stations: CatalogSta
         }
       }
     }
+    order.sort((left, right) => stationRank(left) - stationRank(right));
     const stations = order.map(mergeKey => merged.get(mergeKey)).filter((station): station is Station => station !== undefined);
     if (stations.length < 1) continue;
     refined.push({ ...meal, stations });

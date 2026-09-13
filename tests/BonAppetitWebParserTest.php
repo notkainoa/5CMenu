@@ -92,6 +92,7 @@ assertSameValue(array(), $emptyMeals, "navigation list items must not be accepte
 
 list($parser, $meals, $mode) = parseFixture("collins", "bamco-filter.html");
 assertSameValue("bamco", $mode, "filter fixture should parse as bamco");
+assertTrue(isset($meals["breakfast"], $meals["dinner"]), "filter fixture should include breakfast and dinner");
 
 $breakfast = $meals["breakfast"];
 $dinner = $meals["dinner"];
@@ -119,6 +120,7 @@ foreach($breakfastMenu["menu"] as $item){
 assertSameValue("", $blackBeans["description"] ?? "missing", "portion-only descriptions like 1/4 cup should be stripped");
 
 $comfort = stationByName($breakfast, "comfort");
+assertTrue($comfort != null, "comfort should remain at breakfast");
 $potatoes = null;
 $hashBrowns = null;
 foreach($comfort["menu"] as $item){
@@ -131,10 +133,12 @@ assertTrue(strpos($potatoes["description"], "flour") === false, "recipe bills of
 assertSameValue("", $hashBrowns["description"] ?? "missing", "seasoning-only descriptions should be stripped");
 
 $omelet = stationByName($breakfast, "grill");
+assertTrue($omelet != null, "the breakfast grill bar should remain as one build-your-own item");
 assertSameValue(1, count($omelet["menu"]), "build-your-own bars should collapse to one item");
 assertTrue(strpos(strtolower($omelet["menu"][0]["description"]), "vegan egg") !== false, "request-only notes should move onto the build-your-own item");
 
 $hotCereal = stationByName($breakfast, "hot cereal");
+assertTrue($hotCereal != null, "hot cereal should remain");
 $hotNames = itemNames($hotCereal);
 assertTrue(in_array("hot oatmeal", $hotNames, true), "hot oatmeal should remain");
 assertTrue(in_array("almond overnight oats", $hotNames, true), "overnight oats should remain");
@@ -162,6 +166,7 @@ $sweets = stationByName($breakfast, "sweets");
 assertTrue(in_array("tres leches cake", itemNames($sweets), true), "always-on desserts should stay even when the station also has a featured cookie");
 
 $grill = stationByName($dinner, "grill");
+assertTrue($grill != null, "the dinner grill should remain");
 $grillNames = itemNames($grill);
 assertTrue(in_array("grass fed beef smash burger", $grillNames, true), "featured grill dishes should remain");
 assertTrue(in_array("french fries", $grillNames, true), "fries after the topping lists should remain a separate dish");
@@ -178,25 +183,44 @@ assertTrue(strpos(strtolower($burger["description"]), "lettuce") !== false, "com
 assertTrue(strpos(strtolower($fries["description"]), "lettuce") === false, "topping lists should not attach to dishes that come after them");
 
 $global = stationByName($dinner, "global");
+assertTrue($global != null, "the pasta bar station should remain");
 assertSameValue(1, count($global["menu"]), "a pasta bar should collapse to the header item");
 assertTrue(strpos(strtolower($global["menu"][0]["description"]), "marinara") !== false, "pasta-bar components belong in the header description");
 
 $comfortDinner = stationByName($dinner, "comfort");
+assertTrue($comfortDinner != null, "comfort should remain at dinner");
 assertSameValue(array("steamed spinach, kale, shallots"), itemNames($comfortDinner), "a cooked vegetable plate with commas is a dish, not a topping list");
 
 $dinnerSweets = stationByName($dinner, "sweets");
+assertTrue($dinnerSweets != null, "sweets should remain at dinner");
 assertTrue(in_array("lemon bars", itemNames($dinnerSweets), true), "lemon bars are a dessert, not a salad bar");
 assertSameValue("", $dinnerSweets["menu"][0]["description"], "baking recipes should not be used as the dessert description");
 
 list($mcParser, $mcMeals, $mcMode) = parseFixture("mcconnel", "bamco-filter.html");
+assertTrue(isset($mcMeals["breakfast"]), "McConnell breakfast should parse");
 $mcOvens = stationByName($mcMeals["breakfast"], "ovens");
-assertTrue($mcOvens != null, "McConnell ovens should stay visible so pastries are listed");
-assertTrue(in_array("house-made scones", itemNames($mcOvens), true), "McConnell oven pastries should remain");
+assertTrue($mcOvens != null, "ovens stay visible so pastries are listed");
+assertTrue(in_array("house-made scones", itemNames($mcOvens), true), "oven pastries should remain");
 
 $_GET["showAll"] = "true";
 list($rawParser, $rawMeals, $rawMode) = parseFixture("collins", "bamco-filter.html");
 assertTrue(stationByName($rawMeals["breakfast"], "deli bar") != null, "showAll should keep hidden topping stations");
 assertTrue(in_array("onion", itemNames(stationByName($rawMeals["dinner"], "grill")), true), "showAll should keep always-on grill toppings");
+$_GET["showAll"] = "false";
+list($stillFilteredParser, $stillFilteredMeals, $stillFilteredMode) = parseFixture("collins", "bamco-filter.html");
+assertTrue(stationByName($stillFilteredMeals["breakfast"], "deli bar") == null, "showAll=false should still hide topping catalogs");
 $_GET = array();
+
+$isComponentList = $reflection->getMethod("isComponentList");
+assertSameValue(
+    false,
+    $isComponentList->invoke($parser, "roasted chicken, mashed potatoes, green beans, gravy"),
+    "a cooked four-part plate is a dish, not a foldable topping list"
+);
+assertSameValue(
+    true,
+    $isComponentList->invoke($parser, "roasted apple, roasted mushrooms, sautéed spinach, butternut squash"),
+    "a four-part roasted produce row is still a topping list"
+);
 
 fwrite(STDOUT, "PASS: BonAppetitWebParser fixture checks\n");

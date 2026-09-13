@@ -738,7 +738,9 @@ class BonAppetitWebParser implements DiningHallParser{
     }
 
     private function shouldShowAll(){
-        return isset($_GET["showAll"]) && $_GET["showAll"];
+        if(!isset($_GET["showAll"])){return false;}
+        $value = $_GET["showAll"];
+        return $value === true || $value === 1 || $value === "1" || $value === "true";
     }
 
     private function canonicalStationName($name){
@@ -932,10 +934,10 @@ class BonAppetitWebParser implements DiningHallParser{
         foreach($segments as $segment){
             if(strlen($segment) > 50){$allShort = false; break;}
         }
+        $cooked = preg_match("/\b(grilled|roasted|steamed|baked|sauteed|sautéed|fried|braised|poached|smoked|charbroil|charred|seared|stuffed|glazed|marinated)\b/i", $name);
+        $composedPlate = $cooked && ($count < 4 || preg_match("/\b(chicken|beef|steak|pork|turkey|fish|salmon|cod|tofu|tempeh|potato|potatoes|mashed|rice|gravy|pasta|noodles)\b/i", $name));
+        if($composedPlate){return false;}
         if($count >= 4 && $allShort){return true;}
-        if(preg_match("/\b(grilled|roasted|steamed|baked|sauteed|sautéed|fried|braised|poached|smoked|charbroil|charred|seared|stuffed|glazed|marinated)\b/i", $name) && $count < 4){
-            return false;
-        }
         return $count === 3 && $allShort;
     }
 
