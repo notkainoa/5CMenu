@@ -27,6 +27,64 @@ class BonAppetitWebParser implements DiningHallParser{
     public $modeUsed = null;
     public $sourceUsed = null;
 
+    const HIDDEN_STATIONS = array(
+        "breakfast toppings", "breads, bagels and spreads", "cold cereals", "cold cereal", "cereal",
+        "fruits and yogurts", "beverage", "beverages", "build your own sandwich",
+        "toppings and condiments", "condiments", "deli bar", "deli", "omelet bar",
+        "grill bread", "grill fried side items", "grill fried sides", "breakfast bar",
+        "pasta-express", "pasta express"
+    );
+
+    const PRESENCE_STATIONS = array("salad bar");
+
+    const JUICE_STATIONS = array("juice and smoothie bar", "juice bar");
+
+    const SWEETS_STATIONS = array("sweets", "bakery", "breakfast bakery", "ovens", "ovens2");
+
+    const EXPANDED_STATIONS = array(
+        "main plate", "global", "stocks", "stock pot", "breakfast @home", "@home", "@ home",
+        "vegan salads", "ovens", "options", "grill", "grill special", "comfort", "chef's table",
+        "herbivore", "oasis", "plant forward"
+    );
+
+    const ORDERED_STATIONS = array(
+        "chef's table", "main plate", "breakfast", "breakfast @ home", "breakfast @home", "@home", "@ home",
+        "breakfast options", "options", "expo", "global", "comfort", "grill", "herbivore", "oasis",
+        "plant forward", "simply oasis", "hot cereal", "ovens", "sweets", "stock pot", "stocks"
+    );
+
+    const COMBINED_STATIONS = array(
+        "ovens" => array("ovens", "ovens2"),
+        "sweets" => array("sweets", "chocolate chip cookies"),
+        "grill" => array("grill", "grill special")
+    );
+
+    const BARE_TOPPINGS = array(
+        "spinach", "onion", "onions", "lettuce", "tomato", "tomatoes", "pepper", "peppers",
+        "mushroom", "mushrooms", "cinnamon", "raisin", "raisins", "dried cranberry", "dried cranberries",
+        "cocoa powder", "brown sugar", "sugar brown", "crushed red pepper", "dried oregano", "oregano",
+        "liquid egg", "whole egg", "cheddar jack cheese", "maple syrup", "butter unsalted", "unsalted butter",
+        "pickle", "parmesan cheese", "red pepper flakes", "salt", "black pepper", "cream cheese",
+        "almond butter", "peanut butter", "honey", "artichoke hearts", "bell pepper", "jalapeno",
+        "pickled jalapeno", "sun-dried tomatoes", "flour tortilla", "whipped butter", "chocolate chips",
+        "oreo crumbles"
+    );
+
+    const BREAKFAST_GRILL_COMPONENTS = array(
+        "fried egg", "scrambled eggs", "scrambled egg whites", "cage-free scrambled eggs",
+        "whole egg", "liquid egg", "cheddar jack cheese", "flour tortilla", "croissant",
+        "italian sausage", "pancetta", "plant-based sausage (morningstar)", "plant-based sausage"
+    );
+
+    const GENERIC_SEASONINGS = array(
+        "oil", "canola oil", "olive oil", "salt", "pepper", "black pepper", "water", "cooking spray"
+    );
+
+    const RECIPE_STAPLES = array(
+        "flour", "sugar", "brown sugar", "baking powder", "baking soda", "vanilla extract",
+        "pure vanilla extract", "sour cream"
+    );
+
     function __construct($hall, $sourceURLs, $startTime){
         $this->hall = strtolower($hall);
         $this->sourceURLs = $sourceURLs;
@@ -463,33 +521,52 @@ class BonAppetitWebParser implements DiningHallParser{
                 if(!isset($stationInfo["items"]) || count($stationInfo["items"]) < 1){continue;}
 
                 $stationName = isset($stationInfo["station"]) ? $stationInfo["station"] : "Station";
-                $stationOriginal = strtolower(trim($stationName));
-                $prettyStation = ucwords($stationName);
-                $prettyStation = str_replace(" And ", " and ", $prettyStation);
+                $canonical = $this->canonicalStationName($stationName);
+                if($this->shouldHideStation($canonical, $mealKey)){continue;}
+
+                $items = $stationInfo["items"];
+                if(!$this->shouldShowAll()){
+                    $items = $this->keepJuiceSpecials($canonical, $items);
+                    $items = $this->keepPresenceStation($canonical, $items);
+                    $items = $this->dropAlwaysOnWhenFeatured($canonical, $items);
+                    $items = $this->foldStationExtras($items);
+                    $items = $this->dropBareToppings($canonical, $items);
+                }
 
                 $menu = array();
-                foreach($stationInfo["items"] as $item){
-                    $name = isset($item["name"]) ? $item["name"] : "";
-                    if(strlen($name) < 1){continue;}
-                    $menu[] = array(
-                        "name" => $name,
-                        "description" => isset($item["description"]) ? $item["description"] : "",
-                        "vegan" => isset($item["vegan"]) ? boolval($item["vegan"]) : false,
-                        "vegetarian" => isset($item["vegetarian"]) ? boolval($item["vegetarian"]) : false,
-                        "calories" => isset($item["calories"]) ? intval($item["calories"]) : 0
-                    );
+                foreach($items as $item){
+                    $publicItem = $this->publicMenuItem($item);
+                    if($publicItem == null){continue;}
+                    $menu[] = $publicItem;
                 }
 
                 if(count($menu) < 1){continue;}
-                $stations[] = array(
+                $mergedKey = $this->mergedStationKey($canonical);
+                $prettyStation = $this->prettyStationName($mergedKey);
+                $stationToAdd = array(
                     "station" => $prettyStation,
-                    "stationOriginal" => $stationOriginal,
-                    "autoCollapse" => true,
+                    "stationOriginal" => $mergedKey,
+                    "autoCollapse" => !$this->shouldExpandStation($mergedKey),
                     "menu" => $menu
                 );
+
+                $existingIndex = null;
+                foreach($stations as $index => $existing){
+                    if($existing["stationOriginal"] === $mergedKey){
+                        $existingIndex = $index;
+                        break;
+                    }
+                }
+                if($existingIndex === null){
+                    $stations[] = $stationToAdd;
+                }
+                else{
+                    $stations[$existingIndex]["menu"] = $this->mergeStationMenus($stations[$existingIndex]["menu"], $menu);
+                }
             }
 
             if(count($stations) < 1){continue;}
+            usort($stations, array($this, "compareStations"));
             $normalized[$mealKey] = array(
                 "meal" => $mealLabel,
                 "startTime" => $times[0],
@@ -502,8 +579,6 @@ class BonAppetitWebParser implements DiningHallParser{
     }
 
     private function appendItem(&$destination, $itemRaw){
-        if(isset($itemRaw["special"]) && !$itemRaw["special"]){return;}
-
         $name = isset($itemRaw["label"]) ? $itemRaw["label"] : (isset($itemRaw["name"]) ? $itemRaw["name"] : "");
         $name = ucwords($this->cleanString($name));
         if(strlen($name) < 1){return;}
@@ -529,12 +604,19 @@ class BonAppetitWebParser implements DiningHallParser{
             if(strtolower($existing["name"]) === strtolower($name)){return;}
         }
 
+        $ingredients = "";
+        if(isset($itemRaw["ingredients"]) && is_string($itemRaw["ingredients"])){
+            $ingredients = $this->cleanString($itemRaw["ingredients"]);
+        }
+
         $destination[] = array(
             "name" => $name,
             "description" => $description,
             "vegan" => $vegan,
             "vegetarian" => $vegetarian,
-            "calories" => $calories
+            "calories" => $calories,
+            "special" => isset($itemRaw["special"]) ? $itemRaw["special"] : null,
+            "ingredients" => $ingredients
         );
     }
 
@@ -653,6 +735,370 @@ class BonAppetitWebParser implements DiningHallParser{
         }
 
         return null;
+    }
+
+    private function shouldShowAll(){
+        return isset($_GET["showAll"]) && $_GET["showAll"];
+    }
+
+    private function canonicalStationName($name){
+        $fixed = strtolower($this->cleanString($name));
+        $fixed = str_replace(array("’", "‘", "`"), "'", $fixed);
+        $fixed = str_replace("&", "and", $fixed);
+        $fixed = preg_replace("/\s+/", " ", $fixed);
+        $fixed = str_replace("@ home", "@home", $fixed);
+        return trim($fixed);
+    }
+
+    private function shouldHideStation($canonical, $mealKey){
+        if($this->shouldShowAll()){return false;}
+        if(in_array($canonical, self::HIDDEN_STATIONS, true)){
+            if(in_array($canonical, array("beverage", "beverages"), true) && $mealKey === "late night"){
+                return false;
+            }
+            return true;
+        }
+        if(preg_match("/^chef's table\s*:/", $canonical)){return true;}
+        if($canonical === "breakfast" && $mealKey !== "breakfast" && $mealKey !== "brunch"){return true;}
+        return false;
+    }
+
+    private function keepJuiceSpecials($canonical, $items){
+        if(!in_array($canonical, self::JUICE_STATIONS, true)){return $items;}
+        $featured = array();
+        foreach($items as $item){
+            if($this->isFeaturedItem($item)){$featured[] = $item;}
+        }
+        return count($featured) > 0 ? $featured : array();
+    }
+
+    private function keepPresenceStation($canonical, $items){
+        if(!in_array($canonical, self::PRESENCE_STATIONS, true)){return $items;}
+
+        $featured = array();
+        foreach($items as $item){
+            if($this->isFeaturedItem($item)){$featured[] = $item;}
+        }
+        if(count($featured) > 0){return $featured;}
+
+        return array(array(
+            "name" => "Self-serve",
+            "description" => "",
+            "vegan" => false,
+            "vegetarian" => false,
+            "calories" => 0,
+            "special" => null,
+            "ingredients" => ""
+        ));
+    }
+
+    private function dropAlwaysOnWhenFeatured($canonical, $items){
+        if(in_array($canonical, self::SWEETS_STATIONS, true)){return $items;}
+        $hasFeatured = false;
+        foreach($items as $item){
+            if($this->isFeaturedItem($item)){$hasFeatured = true; break;}
+        }
+        if(!$hasFeatured){return $items;}
+
+        $kept = array();
+        foreach($items as $item){
+            if($this->isAlwaysOnItem($item)){continue;}
+            $kept[] = $item;
+        }
+        return $kept;
+    }
+
+    private function dropBareToppings($canonical, $items){
+        $kept = array();
+        foreach($items as $item){
+            $name = isset($item["name"]) ? $item["name"] : "";
+            if($this->isBareTopping($name, $canonical)){continue;}
+            $kept[] = $item;
+        }
+        return $kept;
+    }
+
+    private function foldStationExtras($items){
+        if(count($items) < 1){return $items;}
+
+        $headerIndex = null;
+        foreach($items as $index => $item){
+            if($this->isBarHeader(isset($item["name"]) ? $item["name"] : "")){
+                $headerIndex = $index;
+                break;
+            }
+        }
+
+        if($headerIndex !== null){
+            $header = $items[$headerIndex];
+            $notes = array();
+            foreach($items as $index => $item){
+                if($index === $headerIndex){continue;}
+                $note = $this->extraNoteText($item);
+                if($note !== "" && !$this->textAlreadyCovered($header["description"], $note) && !$this->textAlreadyCovered(implode("; ", $notes), $note)){
+                    $notes[] = $note;
+                }
+            }
+            if(count($notes) > 0){
+                $header["description"] = $this->joinDescriptions(isset($header["description"]) ? $header["description"] : "", implode(", ", $notes));
+            }
+            return array($header);
+        }
+
+        $dishes = array();
+        $pendingPrefix = array();
+        $pendingSuffix = array();
+        foreach($items as $item){
+            if($this->isFoldableExtra($item)){
+                if(count($dishes) < 1){$pendingPrefix[] = $item;}
+                else{$pendingSuffix[] = $item;}
+                continue;
+            }
+            if(count($pendingSuffix) > 0 && count($dishes) > 0){
+                $this->applyNotesToDishes($dishes, $pendingSuffix);
+                $pendingSuffix = array();
+            }
+            $dishes[] = $item;
+        }
+        $this->applyNotesToDishes($dishes, array_merge($pendingPrefix, $pendingSuffix));
+        return $dishes;
+    }
+
+    private function applyNotesToDishes(&$dishes, $noteItems){
+        if(count($dishes) < 1 || count($noteItems) < 1){return;}
+
+        $notes = array();
+        foreach($noteItems as $noteItem){
+            $note = $this->extraNoteText($noteItem);
+            if($note === "" || $this->isBoilerplateInstruction($note)){continue;}
+            $covered = false;
+            foreach($dishes as $dish){
+                if($this->textAlreadyCovered(isset($dish["description"]) ? $dish["description"] : "", $note)){
+                    $covered = true;
+                    break;
+                }
+            }
+            if(!$covered){$notes[] = $note;}
+        }
+        if(count($notes) < 1){return;}
+
+        $joined = implode("; ", $notes);
+        foreach($dishes as &$dish){
+            $dish["description"] = $this->joinDescriptions(isset($dish["description"]) ? $dish["description"] : "", $joined);
+        }
+        unset($dish);
+    }
+
+    private function extraNoteText($item){
+        $name = isset($item["name"]) ? $item["name"] : "";
+        $description = isset($item["description"]) ? $item["description"] : "";
+        if($this->isBoilerplateInstruction($name) && $description === ""){return "";}
+        if(preg_match("/^toppings$/", strtolower($name))){return $description;}
+        if($this->isComponentList($name) || $this->isInstruction($name) || $this->isBareTopping($name, "")){
+            return $description !== "" ? $name . ": " . $description : $name;
+        }
+        return $description !== "" ? $name . ": " . $description : $name;
+    }
+
+    private function isFoldableExtra($item){
+        $name = isset($item["name"]) ? $item["name"] : "";
+        return $this->isInstruction($name) || $this->isComponentList($name);
+    }
+
+    private function isBarHeader($name){
+        $fixed = strtolower($name);
+        return preg_match("/\bbuild your own\b/", $fixed)
+            || preg_match("/\b(salad bar|pasta bar|parfait bar|fruit salad bar)\b/", $fixed);
+    }
+
+    private function isInstruction($name){
+        $fixed = strtolower($name);
+        return preg_match("/made (fresh )?to order/", $fixed)
+            || preg_match("/available upon request/", $fixed)
+            || preg_match("/^live grill\b/", $fixed)
+            || preg_match("/^toppings$/", $fixed);
+    }
+
+    private function isBoilerplateInstruction($text){
+        return preg_match("/^(live grill\s*-+\s*)?made (fresh )?to order$/i", trim($text)) === 1;
+    }
+
+    private function isComponentList($name){
+        $segments = preg_split("/,\s*/", $name);
+        $segments = array_values(array_filter(array_map("trim", $segments), function($part){return strlen($part) > 0;}));
+        $count = count($segments);
+        if($count < 3){return false;}
+        $allShort = true;
+        foreach($segments as $segment){
+            if(strlen($segment) > 50){$allShort = false; break;}
+        }
+        if($count >= 4 && $allShort){return true;}
+        if(preg_match("/\b(grilled|roasted|steamed|baked|sauteed|sautéed|fried|braised|poached|smoked|charbroil|charred|seared|stuffed|glazed|marinated)\b/i", $name) && $count < 4){
+            return false;
+        }
+        return $count === 3 && $allShort;
+    }
+
+    private function isBareTopping($name, $canonicalStation){
+        $fixed = $this->canonicalStationName($name);
+        $fixed = preg_replace("/^(add|extra|real|fresh|house-made|house made)\s+/", "", $fixed);
+        if(in_array($fixed, self::BARE_TOPPINGS, true)){return true;}
+        if($canonicalStation === "breakfast grill" && in_array($fixed, self::BREAKFAST_GRILL_COMPONENTS, true)){return true;}
+        return false;
+    }
+
+    private function isFeaturedItem($item){
+        if(!isset($item["special"])){return false;}
+        $value = $item["special"];
+        return $value === true || $value === 1 || $value === "1";
+    }
+
+    private function isAlwaysOnItem($item){
+        if(!isset($item["special"])){return false;}
+        $value = $item["special"];
+        return $value === false || $value === 0 || $value === "0";
+    }
+
+    private function publicMenuItem($item){
+        $name = isset($item["name"]) ? $item["name"] : "";
+        if(strlen($name) < 1){return null;}
+
+        $description = $this->cleanDescription(isset($item["description"]) ? $item["description"] : "");
+        if($description === ""){
+            $description = $this->descriptionFromIngredients($name, isset($item["ingredients"]) ? $item["ingredients"] : "");
+        }
+
+        return array(
+            "name" => $name,
+            "description" => $description,
+            "vegan" => isset($item["vegan"]) ? boolval($item["vegan"]) : false,
+            "vegetarian" => isset($item["vegetarian"]) ? boolval($item["vegetarian"]) : false,
+            "calories" => isset($item["calories"]) ? intval($item["calories"]) : 0
+        );
+    }
+
+    private function cleanDescription($description){
+        $description = $this->cleanString($description);
+        if($description === ""){return "";}
+        if(preg_match("/^\d+(\/\d+)?\s*(cup|each|fl oz|oz|tbsp|tsp)$/i", $description)){return "";}
+
+        $parts = preg_split("/,\s*/", strtolower($description));
+        $allSeasoning = count($parts) > 0;
+        foreach($parts as $part){
+            $part = preg_replace("/^with\s+/", "", trim($part));
+            if($part === "" || in_array($part, self::GENERIC_SEASONINGS, true) || preg_match("/cooking spray$/", $part)){continue;}
+            $allSeasoning = false;
+            break;
+        }
+        return $allSeasoning ? "" : $description;
+    }
+
+    private function descriptionFromIngredients($name, $ingredients){
+        $ingredients = $this->cleanString($ingredients);
+        if($ingredients === "" || strpos($ingredients, "(") !== false){return "";}
+
+        $parts = preg_split("/,\s*/", $ingredients);
+        $kept = array();
+        $nameLower = strtolower($name);
+        foreach($parts as $part){
+            $part = trim($part);
+            if($part === ""){continue;}
+            $lower = strtolower($part);
+            if(in_array($lower, self::GENERIC_SEASONINGS, true)){continue;}
+            if(preg_match("/cooking spray$/", $lower)){continue;}
+            if(in_array($lower, self::RECIPE_STAPLES, true)){return "";}
+            if(preg_match("/\b(\d+\s*(fl oz|oz)|rtc|curate|frozen)\b/", $lower)){continue;}
+            if(strlen($part) > 48){continue;}
+            if(strpos($nameLower, $lower) !== false){continue;}
+            $stem = rtrim($lower, "s");
+            if(strlen($stem) >= 3 && strpos($nameLower, $stem) !== false){continue;}
+            if($this->ingredientWordsCoveredByName($nameLower, $lower)){continue;}
+            $kept[] = $part;
+        }
+
+        if(count($kept) < 1 || count($kept) > 4){return "";}
+        if(count($parts) >= 8){return "";}
+
+        $pretty = $this->joinList($kept);
+        return preg_match("/^with\b/i", $pretty) ? $pretty : "with " . $pretty;
+    }
+
+    private function ingredientWordsCoveredByName($nameLower, $ingredientLower){
+        $words = preg_split("/[\s-]+/", $ingredientLower);
+        $meaningful = 0;
+        foreach($words as $word){
+            if(strlen($word) < 3){continue;}
+            $meaningful++;
+            if(strpos($nameLower, $word) === false){return false;}
+        }
+        return $meaningful > 0;
+    }
+
+    private function joinList($parts){
+        $count = count($parts);
+        if($count === 1){return $parts[0];}
+        if($count === 2){return $parts[0] . " and " . $parts[1];}
+        return implode(", ", array_slice($parts, 0, $count - 1)) . ", and " . $parts[$count - 1];
+    }
+
+    private function joinDescriptions($existing, $extra){
+        $existing = trim($existing);
+        $extra = trim($extra);
+        if($extra === ""){return $existing;}
+        if($existing === ""){return $extra;}
+        if($this->textAlreadyCovered($existing, $extra)){return $existing;}
+        return $existing . "; " . $extra;
+    }
+
+    private function textAlreadyCovered($haystack, $needle){
+        $hay = strtolower($this->cleanString($haystack));
+        $need = strtolower($this->cleanString($needle));
+        if($hay === "" || $need === ""){return false;}
+        if(strpos($hay, $need) !== false){return true;}
+        $prefix = substr($need, 0, min(40, strlen($need)));
+        return strlen($prefix) >= 20 && strpos($hay, $prefix) !== false;
+    }
+
+    private function mergedStationKey($canonical){
+        foreach(self::COMBINED_STATIONS as $key => $values){
+            if(in_array($canonical, $values, true)){return $key;}
+        }
+        return $canonical;
+    }
+
+    private function prettyStationName($canonical){
+        $pretty = ucwords($canonical);
+        $pretty = str_replace(" And ", " and ", $pretty);
+        $pretty = str_replace("@home", "@Home", $pretty);
+        $pretty = str_replace("@ Home", "@Home", $pretty);
+        return $pretty;
+    }
+
+    private function shouldExpandStation($canonical){
+        return in_array($canonical, self::EXPANDED_STATIONS, true);
+    }
+
+    private function mergeStationMenus($existing, $incoming){
+        foreach($incoming as $item){
+            $duplicate = false;
+            foreach($existing as $current){
+                if(strtolower($current["name"]) === strtolower($item["name"])){
+                    $duplicate = true;
+                    break;
+                }
+            }
+            if(!$duplicate){$existing[] = $item;}
+        }
+        return $existing;
+    }
+
+    private function compareStations($item1, $item2){
+        $i1 = array_search($item1["stationOriginal"], self::ORDERED_STATIONS, true);
+        $i2 = array_search($item2["stationOriginal"], self::ORDERED_STATIONS, true);
+        if($i1 === false){$i1 = 1000;}
+        if($i2 === false){$i2 = 1000;}
+        if($i1 === $i2){return 0;}
+        return $i1 > $i2 ? 1 : -1;
     }
 
     private function cleanString($str){
