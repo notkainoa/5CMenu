@@ -307,33 +307,39 @@ function refineStation(station: CatalogStation, meal: string): Station | undefin
   return { name: station.name, items: published };
 }
 
+function groupStations(stations: CatalogStation[], meal: string): CatalogStation[] {
+  const grouped = new Map<string, CatalogStation>();
+  const order: string[] = [];
+  for (const station of stations) {
+    const canonical = canonicalStationName(station.name);
+    if (shouldHideStation(canonical, meal)) continue;
+    const mergeKey = mergeStationKey(canonical);
+    const existing = grouped.get(mergeKey);
+    if (!existing) {
+      const name = mergeKey === canonical ? station.name : prettyStationName(mergeKey);
+      grouped.set(mergeKey, { name, items: station.items.map(item => ({ ...item })) });
+      order.push(mergeKey);
+      continue;
+    }
+    if (mergeKey === canonical) existing.name = station.name;
+    for (const item of station.items) {
+      if (!existing.items.some(current => current.name.toLowerCase() === item.name.toLowerCase())) {
+        existing.items.push({ ...item });
+      }
+    }
+  }
+  order.sort((left, right) => stationRank(left) - stationRank(right));
+  return order.map(mergeKey => grouped.get(mergeKey)).filter((station): station is CatalogStation => station !== undefined);
+}
+
 /** Drop always-on topping catalogs and fold build-your-own extras into descriptions. */
 export function refineBonAppetitMeals(meals: Array<Meal & { stations: CatalogStation[] }>): Meal[] {
   const refined: Meal[] = [];
   for (const meal of meals) {
     const key = mealKey(meal.name);
-    const merged = new Map<string, Station>();
-    const order: string[] = [];
-    for (const station of meal.stations) {
-      const refinedStation = refineStation(station, key);
-      if (!refinedStation) continue;
-      const canonical = canonicalStationName(station.name);
-      const mergeKey = mergeStationKey(canonical);
-      const existing = merged.get(mergeKey);
-      if (!existing) {
-        const name = mergeKey === canonical ? refinedStation.name : prettyStationName(mergeKey);
-        merged.set(mergeKey, { ...refinedStation, name });
-        order.push(mergeKey);
-        continue;
-      }
-      for (const item of refinedStation.items) {
-        if (!existing.items.some(current => current.name.toLowerCase() === item.name.toLowerCase())) {
-          existing.items.push(item);
-        }
-      }
-    }
-    order.sort((left, right) => stationRank(left) - stationRank(right));
-    const stations = order.map(mergeKey => merged.get(mergeKey)).filter((station): station is Station => station !== undefined);
+    const stations = groupStations(meal.stations, key)
+      .map(station => refineStation(station, key))
+      .filter((station): station is Station => station !== undefined);
     if (stations.length < 1) continue;
     refined.push({ ...meal, stations });
   }

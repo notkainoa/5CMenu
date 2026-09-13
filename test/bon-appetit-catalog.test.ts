@@ -47,6 +47,47 @@ describe('refineBonAppetitMeals', () => {
     ]);
   });
 
+  it('drops always-on grill condiments after merging a second grill station', () => {
+    const meals = refineBonAppetitMeals([
+      {
+        name: 'Dinner',
+        stations: [
+          {
+            name: 'Grill',
+            items: [
+              item('smash burger', { special: 1 }),
+              item("lettuce, tomatoes, pickle, pepperoncini's, red onions, cheese", { special: 1 }),
+              item('french fries', { special: 1 }),
+            ],
+          },
+          {
+            name: 'Grill',
+            items: [
+              item('beef patty', { special: 0 }),
+              item('white hamburger bun', { special: 0 }),
+              item('cheddar cheese', { special: 0 }),
+              item('chipotle mayonnaise', { special: 0 }),
+            ],
+          },
+        ],
+      },
+    ]);
+    assert.deepEqual(meals[0].stations[0].items.map(entry => entry.name), ['smash burger', 'french fries']);
+  });
+
+  it('does not add a self-serve placeholder when a featured salad bar already exists', () => {
+    const meals = refineBonAppetitMeals([
+      {
+        name: 'Lunch',
+        stations: [
+          { name: 'Salad Bar', items: [item('self serve salad bar', { special: 1 })] },
+          { name: 'Salad Bar', items: [item('artichoke hearts', { special: 0 })] },
+        ],
+      },
+    ]);
+    assert.deepEqual(meals[0].stations[0].items.map(entry => entry.name), ['self serve salad bar']);
+  });
+
   it('folds grill topping lists onto featured dishes and drops always-on garnishes', () => {
     const meals = refineBonAppetitMeals([
       {

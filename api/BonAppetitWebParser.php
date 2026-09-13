@@ -516,7 +516,8 @@ class BonAppetitWebParser implements DiningHallParser{
             $mealLabel = isset($meal["meal"]) ? $meal["meal"] : ucwords($mealKey);
             $times = $this->mealTimes($dateString, $mealKey, $meal);
 
-            $stations = array();
+            $grouped = array();
+            $order = array();
             foreach($meal["stations"] as $stationInfo){
                 if(!isset($stationInfo["items"]) || count($stationInfo["items"]) < 1){continue;}
 
@@ -524,7 +525,23 @@ class BonAppetitWebParser implements DiningHallParser{
                 $canonical = $this->canonicalStationName($stationName);
                 if($this->shouldHideStation($canonical, $mealKey)){continue;}
 
-                $items = $stationInfo["items"];
+                $mergedKey = $this->mergedStationKey($canonical);
+                if(!isset($grouped[$mergedKey])){
+                    $grouped[$mergedKey] = array(
+                        "station" => $this->prettyStationName($mergedKey),
+                        "canonical" => $mergedKey,
+                        "items" => array()
+                    );
+                    $order[] = $mergedKey;
+                }
+                $grouped[$mergedKey]["items"] = $this->mergeStationMenus($grouped[$mergedKey]["items"], $stationInfo["items"]);
+            }
+
+            $stations = array();
+            foreach($order as $mergedKey){
+                $group = $grouped[$mergedKey];
+                $canonical = $group["canonical"];
+                $items = $group["items"];
                 if(!$this->shouldShowAll()){
                     $items = $this->keepJuiceSpecials($canonical, $items);
                     $items = $this->keepPresenceStation($canonical, $items);
@@ -539,30 +556,13 @@ class BonAppetitWebParser implements DiningHallParser{
                     if($publicItem == null){continue;}
                     $menu[] = $publicItem;
                 }
-
                 if(count($menu) < 1){continue;}
-                $mergedKey = $this->mergedStationKey($canonical);
-                $prettyStation = $this->prettyStationName($mergedKey);
-                $stationToAdd = array(
-                    "station" => $prettyStation,
+                $stations[] = array(
+                    "station" => $group["station"],
                     "stationOriginal" => $mergedKey,
                     "autoCollapse" => !$this->shouldExpandStation($mergedKey),
                     "menu" => $menu
                 );
-
-                $existingIndex = null;
-                foreach($stations as $index => $existing){
-                    if($existing["stationOriginal"] === $mergedKey){
-                        $existingIndex = $index;
-                        break;
-                    }
-                }
-                if($existingIndex === null){
-                    $stations[] = $stationToAdd;
-                }
-                else{
-                    $stations[$existingIndex]["menu"] = $this->mergeStationMenus($stations[$existingIndex]["menu"], $menu);
-                }
             }
 
             if(count($stations) < 1){continue;}
