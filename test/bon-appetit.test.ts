@@ -81,7 +81,6 @@ describe('parseBonAppetitPage', () => {
           name: 'Breakfast', startTime: '07:30', endTime: '09:00', stations: [
             { name: "Chef's Table & Grill", items: [
               { name: 'tofu & greens', description: 'Ginger sauce', vegan: true, calories: 240 },
-              { name: 'mac & cheese', vegetarian: true, calories: 0 },
             ] },
             { name: 'Pantry', items: [{ name: "chef's choice", description: 'No nutrition published' }] },
           ],

@@ -1,0 +1,119 @@
+import assert from 'node:assert/strict';
+import { describe, it } from 'node:test';
+import { refineBonAppetitMeals, type CatalogItem } from '../src/providers/bon-appetit-catalog';
+
+function item(name: string, extra: Partial<CatalogItem> = {}): CatalogItem {
+  return { name, ...extra };
+}
+
+describe('refineBonAppetitMeals', () => {
+  it('hides topping catalogs but keeps salad bar as a self-serve option', () => {
+    const meals = refineBonAppetitMeals([
+      {
+        name: 'Lunch',
+        stations: [
+          { name: 'Deli Bar', items: [item('rye bread', { special: 0 })] },
+          { name: 'Cereal', items: [item('Cheerios', { special: 0 })] },
+          { name: 'Salad Bar', items: [item('artichoke hearts', { special: 0 }), item('self serve salad bar', { special: 1 })] },
+        ],
+      },
+    ]);
+    assert.deepEqual(meals.map(meal => meal.stations.map(station => [station.name, station.items.map(entry => entry.name)])), [
+      [['Salad Bar', ['self serve salad bar']]],
+    ]);
+  });
+
+  it('keeps a toppings-only salad bar as a placeholder instead of listing garnishes', () => {
+    const meals = refineBonAppetitMeals([
+      { name: 'Dinner', stations: [{ name: 'Salad Bar', items: [item('arugula', { special: 0 })] }] },
+    ]);
+    assert.deepEqual(meals[0].stations[0].items, [{ name: 'Self-serve' }]);
+  });
+
+  it('keeps always-on breakfast dishes and oven pastries', () => {
+    const meals = refineBonAppetitMeals([
+      {
+        name: 'Breakfast',
+        stations: [
+          { name: 'Breakfast', items: [item('scrambled eggs', { special: 0 })] },
+          { name: 'Ovens', items: [item('house-made scones', { special: 0 })] },
+          { name: 'ovens2', items: [item('pepperoni pizza', { special: 0 }), item('dried oregano', { special: 0 })] },
+        ],
+      },
+    ]);
+    assert.deepEqual(meals[0].stations.map(station => [station.name, station.items.map(entry => entry.name)]), [
+      ['Breakfast', ['scrambled eggs']],
+      ['Ovens', ['house-made scones', 'pepperoni pizza']],
+    ]);
+  });
+
+  it('folds grill topping lists onto featured dishes and drops always-on garnishes', () => {
+    const meals = refineBonAppetitMeals([
+      {
+        name: 'Dinner',
+        stations: [{
+          name: 'Grill',
+          items: [
+            item('live grill - made fresh to order', { special: 1 }),
+            item('smash burger', { special: 1 }),
+            item("lettuce, tomatoes, pickle, pepperoncini's, red onions, cheese", { special: 1 }),
+            item('french fries', { special: 1 }),
+            item('onion', { special: 0 }),
+            item('beef patty', { special: 0 }),
+          ],
+        }],
+      },
+    ]);
+    const grill = meals[0].stations[0];
+    assert.deepEqual(grill.items.map(entry => entry.name), ['smash burger', 'french fries']);
+    assert.match(grill.items[0].description ?? '', /lettuce/i);
+    assert.equal(grill.items[1].description, undefined);
+  });
+
+  it('collapses a pasta bar and keeps a cooked vegetable plate as a dish', () => {
+    const meals = refineBonAppetitMeals([
+      {
+        name: 'Dinner',
+        stations: [
+          {
+            name: 'Global',
+            items: [
+              item('pitzer pasta bar', { special: 1 }),
+              item('marinara sauce', { special: 1 }),
+              item('bow tie pasta', { special: 1 }),
+            ],
+          },
+          { name: 'Comfort', items: [item('steamed spinach, kale, shallots', { special: 1 })] },
+        ],
+      },
+    ]);
+    assert.equal(meals[0].stations[0].items.length, 1);
+    assert.match(meals[0].stations[0].items[0].description ?? '', /marinara/i);
+    assert.equal(meals[0].stations[1].items[0].name, 'steamed spinach, kale, shallots');
+  });
+
+  it('strips portion and seasoning descriptions and backfills a short garnish list', () => {
+    const meals = refineBonAppetitMeals([
+      {
+        name: 'Brunch',
+        stations: [{
+          name: 'Comfort',
+          items: [
+            item('hash browns', { special: 1, description: 'with oil, salt, black pepper' }),
+            item('garlic parsley breakfast potatoes', { special: 1, ingredients: 'potato, oil, salt, parsley, garlic, smoked paprika, black pepper' }),
+          ],
+        }],
+      },
+    ]);
+    const names = Object.fromEntries(meals[0].stations[0].items.map(entry => [entry.name, entry.description]));
+    assert.equal(names['hash browns'], undefined);
+    assert.match(names['garlic parsley breakfast potatoes'] ?? '', /smoked paprika/);
+  });
+
+  it('hides a leftover breakfast station at dinner', () => {
+    const meals = refineBonAppetitMeals([
+      { name: 'Dinner', stations: [{ name: 'Breakfast', items: [item('peas', { special: 0 })] }] },
+    ]);
+    assert.deepEqual(meals, []);
+  });
+});
