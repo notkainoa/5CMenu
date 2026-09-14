@@ -60,9 +60,24 @@ function menuWindowFetchBudgetSeconds(){
     return 45;
 }
 
-function canStartMenuWindowFetch($completedFetches, $elapsedSeconds, $budgetSeconds = null){
+function remainingMenuWindowBudget($startedAt, $now, $budgetSeconds = null){
     if($budgetSeconds === null){$budgetSeconds = menuWindowFetchBudgetSeconds();}
-    return $completedFetches === 0 || $elapsedSeconds < $budgetSeconds;
+    return $budgetSeconds - ($now - $startedAt);
+}
+
+function canStartMenuWindowFetch($completedFetches, $remainingSeconds){
+    return $completedFetches === 0 || $remainingSeconds >= 1;
+}
+
+function menuWindowFetchTimeoutSeconds($remainingSeconds){
+    $timeout = (int)ceil($remainingSeconds);
+    if($timeout < 1){$timeout = 1;}
+    $budget = menuWindowFetchBudgetSeconds();
+    return $timeout > $budget ? $budget : $timeout;
+}
+
+function currentMenuFetchTimeoutSeconds(){
+    return isset($GLOBALS["MENU_WINDOW_FETCH_TIMEOUT"]) ? intval($GLOBALS["MENU_WINDOW_FETCH_TIMEOUT"]) : menuWindowFetchBudgetSeconds();
 }
 
 function collectMenuWindow($responses, $menuDays){
@@ -169,8 +184,18 @@ function run($action){
     $startedAt = microtime(true);
 
     foreach($menuDays as $menuDay){
-        if(!canStartMenuWindowFetch(count($responses), microtime(true) - $startedAt)){break;}
-        $responses[] = fetchMenu($diningHall, $menuDay->getTimestamp(), $source);
+        $remaining = remainingMenuWindowBudget($startedAt, microtime(true));
+        if(!canStartMenuWindowFetch(count($responses), $remaining)){break;}
+        $timeout = menuWindowFetchTimeoutSeconds($remaining > 0 ? $remaining : menuWindowFetchBudgetSeconds());
+        $previousTimeout = ini_get("default_socket_timeout");
+        $GLOBALS["MENU_WINDOW_FETCH_TIMEOUT"] = $timeout;
+        ini_set("default_socket_timeout", (string)$timeout);
+        try {
+            $responses[] = fetchMenu($diningHall, $menuDay->getTimestamp(), $source);
+        } finally {
+            ini_set("default_socket_timeout", $previousTimeout);
+            unset($GLOBALS["MENU_WINDOW_FETCH_TIMEOUT"]);
+        }
         $menu = collectMenuWindow($responses, $menuDays);
         if(count($menu) === count($menuDays)){break;}
     }

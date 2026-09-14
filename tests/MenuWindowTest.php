@@ -41,8 +41,13 @@ assertSameValue(
 );
 
 $budget = menuWindowFetchBudgetSeconds();
-assertSameValue(true, canStartMenuWindowFetch(0, $budget + 10, $budget), "the first fetch should start even if the budget is already exhausted");
-assertSameValue(true, canStartMenuWindowFetch(1, $budget - 0.01, $budget), "later fetches should start while time remains in the overall budget");
-assertSameValue(false, canStartMenuWindowFetch(1, $budget, $budget), "later fetches should stop once the overall budget is exhausted so a slow provider still yields a partial window");
+assertSameValue(true, canStartMenuWindowFetch(0, -10), "the first fetch should start even if the budget is already exhausted");
+assertSameValue(true, canStartMenuWindowFetch(1, 1), "later fetches should start when at least one second remains in the overall budget");
+assertSameValue(false, canStartMenuWindowFetch(1, 0.9), "later fetches should not start when the remaining budget cannot cover a timed-out request");
+assertSameValue($budget, remainingMenuWindowBudget(0, 0, $budget), "the remaining budget should start equal to the overall window");
+assertSameValue(1, remainingMenuWindowBudget(0, $budget - 1, $budget), "the remaining budget should shrink with elapsed time");
+assertSameValue(1, menuWindowFetchTimeoutSeconds(0.2), "a remaining slice under one second should still time out in one second");
+assertSameValue(12, menuWindowFetchTimeoutSeconds(11.1), "a remaining slice should become a whole-second fetch timeout");
+assertSameValue($budget, menuWindowFetchTimeoutSeconds($budget + 10), "a fetch timeout should never exceed the overall budget");
 
 fwrite(STDOUT, "PASS: menu window checks\n");
