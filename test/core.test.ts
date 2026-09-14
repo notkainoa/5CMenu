@@ -183,7 +183,11 @@ test('stored items accept explicit diet no values and reject non-boolean diet fl
   assert.equal(validMeals([{ name: 'Lunch', stations: [{ name: 'Main', items: [{ name: 'Pasta', glutenFree: 'yes' }] }] }]), false);
 });
 
-test('stored items accept a non-empty allergen list and reject an empty one', () => {
+test('stored items accept a sorted unique allergen list and reject invalid entries', () => {
   assert.equal(validMeals([{ name: 'Lunch', stations: [{ name: 'Main', items: [{ name: 'Pasta', allergens: ['milk', 'wheat'] }] }] }]), true);
   assert.equal(validMeals([{ name: 'Lunch', stations: [{ name: 'Main', items: [{ name: 'Pasta', allergens: [] }] }] }]), false);
+  assert.equal(validMeals([{ name: 'Lunch', stations: [{ name: 'Main', items: [{ name: 'Pasta', allergens: ['wheat', 'milk'] }] }] }]), false);
+  assert.equal(validMeals([{ name: 'Lunch', stations: [{ name: 'Main', items: [{ name: 'Pasta', allergens: ['Milk', 'wheat'] }] }] }]), false);
+  assert.equal(validMeals([{ name: 'Lunch', stations: [{ name: 'Main', items: [{ name: 'Pasta', allergens: ['soybeans'] }] }] }]), false);
+  assert.equal(validMeals([{ name: 'Lunch', stations: [{ name: 'Main', items: [{ name: 'Pasta', allergens: ['milk', 'milk'] }] }] }]), false);
 });

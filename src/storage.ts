@@ -1,5 +1,6 @@
 import { HALLS, type Meal, type Snapshot, type SnapshotStore } from './types';
 import { isValidDate, validTime } from './dates';
+import { ALLERGEN_TOKENS } from './allergens';
 import { DIET_FLAGS } from './diet';
 import { MEAL_PERIODS } from './periods';
 
@@ -20,8 +21,9 @@ export function validMeals(value: unknown): value is Meal[] {
         (item.description === undefined || typeof item.description === 'string') &&
         [item.featured, ...DIET_FLAGS.map(flag => item[flag])].every(flag => flag === undefined || typeof flag === 'boolean') &&
         (item.calories === undefined || typeof item.calories === 'number' && Number.isFinite(item.calories) && item.calories >= 0) &&
-        (item.allergens === undefined || Array.isArray(item.allergens) && item.allergens.length >= 1 && item.allergens.length <= 32 &&
-          item.allergens.every(entry => typeof entry === 'string' && entry.trim().length > 0 && entry.length <= 64)))));
+        (item.allergens === undefined || Array.isArray(item.allergens) && item.allergens.length >= 1 &&
+          item.allergens.every((entry, index) => typeof entry === 'string' && (ALLERGEN_TOKENS as readonly string[]).includes(entry) &&
+            (index === 0 || entry > (item.allergens as string[])[index - 1]))))));
 }
 function timestamp(value: unknown): boolean {
   return value === null || typeof value === 'string' && Number.isFinite(Date.parse(value));

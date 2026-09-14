@@ -7,7 +7,7 @@ const API_URL = 'https://api-prd.sodexomyway.net/v0.2/data/menu/13147001/15258';
 const API_KEY = '68717828-b754-420d-9488-4c37cb7d7ef7';
 const MAX_BYTES = 2 * 1024 * 1024;
 const TIMEOUT_MS = 15_000;
-const STATE_VERSION = 2;
+const STATE_VERSION = 3;
 
 type JsonRecord = Record<string, unknown>;
 interface CachedDate { hash: string; day?: ParsedDay }
