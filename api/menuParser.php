@@ -79,7 +79,7 @@ function menuWindowFetchTimeoutSeconds($remainingSeconds){
 function currentMenuFetchTimeoutSeconds(){
     if(isset($GLOBALS["MENU_WINDOW_FETCH_DEADLINE"])){
         $remaining = $GLOBALS["MENU_WINDOW_FETCH_DEADLINE"] - microtime(true);
-        if($remaining <= 0){return 0;}
+        if($remaining < 1){return 0;}
         return menuWindowFetchTimeoutSeconds($remaining);
     }
     return menuWindowFetchBudgetSeconds();

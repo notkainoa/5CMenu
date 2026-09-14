@@ -128,6 +128,7 @@ class BonAppetitParser implements DiningHallParser{
         $timeout = function_exists("currentMenuFetchTimeoutSeconds") ? currentMenuFetchTimeoutSeconds() : 45;
         if($timeout < 1){
             $this->json = null;
+            $this->info = array("menu" => array());
             return;
         }
         curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
@@ -137,8 +138,18 @@ class BonAppetitParser implements DiningHallParser{
         curl_setopt($ch, CURLOPT_NOPROGRESS, false);
         $raw = curl_exec ($ch);
         curl_close ($ch);
+        if($raw === false){
+            $this->json = null;
+            $this->info = array("menu" => array());
+            return;
+        }
 
         $this->json = $json = json_decode($raw, true);
+        if(!is_array($json) || !isset($json["days"]) || !is_array($json["days"])){
+            $this->json = null;
+            $this->info = array("menu" => array());
+            return;
+        }
 
         if($_GET['developer']){
             //echo curl_error($ch);

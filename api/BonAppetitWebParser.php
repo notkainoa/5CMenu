@@ -138,6 +138,8 @@ class BonAppetitWebParser implements DiningHallParser{
     }
 
     private function fetchURL($url){
+        $timeout = function_exists("currentMenuFetchTimeoutSeconds") ? currentMenuFetchTimeoutSeconds() : 45;
+        if($timeout < 1){return null;}
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -148,8 +150,6 @@ class BonAppetitWebParser implements DiningHallParser{
         ]);
         curl_setopt($ch, CURLOPT_ENCODING, "");
         curl_setopt($ch, CURLOPT_USERAGENT, "Mozilla/5.0");
-        $timeout = function_exists("currentMenuFetchTimeoutSeconds") ? currentMenuFetchTimeoutSeconds() : 45;
-        if($timeout < 1){return null;}
         curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
         curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, min(30, $timeout));
         curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);

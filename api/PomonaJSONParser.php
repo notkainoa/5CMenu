@@ -484,9 +484,7 @@ class PomonaJSONParser{
 
     private function fetchHoursInfo(){
         $diningHallInfoURL = "https://www.pomona.edu/administration/dining/menus/$this->site";
-        $diningHallInfoContents = function_exists("menuWindowFileGetContents")
-            ? menuWindowFileGetContents($diningHallInfoURL)
-            : file_get_contents($diningHallInfoURL);
+        $diningHallInfoContents = file_get_contents($diningHallInfoURL);
 
         $info = [];
         for($i = 1; $i <= 5; $i++){

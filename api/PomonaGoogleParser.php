@@ -81,9 +81,12 @@ class PomonaGoogleParser {
 
 
 
-        $initialSpreadsheetJSON = json_decode(function_exists("menuWindowFileGetContents")
+        $spreadsheetRaw = function_exists("menuWindowFileGetContents")
             ? menuWindowFileGetContents($this->spreadsheetURL)
-            : file_get_contents($this->spreadsheetURL), true);
+            : file_get_contents($this->spreadsheetURL);
+        if(!is_string($spreadsheetRaw) || strlen($spreadsheetRaw) < 1){return null;}
+        $initialSpreadsheetJSON = json_decode($spreadsheetRaw, true);
+        if(!is_array($initialSpreadsheetJSON) || !isset($initialSpreadsheetJSON["feed"]["entry"])){return null;}
 
         $entries = $initialSpreadsheetJSON["feed"]["entry"];
         $monday = $this->nearestMonday();
@@ -153,7 +156,23 @@ class PomonaGoogleParser {
         $raw = function_exists("menuWindowFileGetContents")
             ? menuWindowFileGetContents($jsonURL)
             : file_get_contents($jsonURL);
+        if(!is_string($raw) || strlen($raw) < 1){
+            $this->info = array(
+                "messages" => [
+                    "screenMessage" => "We're having issues with Pomona right now. Check back soon."
+                ]
+            );
+            return;
+        }
         $json = json_decode($raw, true);
+        if(!is_array($json) || !isset($json["feed"]["entry"])){
+            $this->info = array(
+                "messages" => [
+                    "screenMessage" => "We're having issues with Pomona right now. Check back soon."
+                ]
+            );
+            return;
+        }
 
         $sorted = array();
         foreach($json["feed"]["entry"] as $entry){

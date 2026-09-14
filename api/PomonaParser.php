@@ -66,6 +66,10 @@ class PomonaParser implements DiningHallParser{
         $contents = function_exists("menuWindowFileGetContents")
             ? menuWindowFileGetContents($this->url, $arrContextOptions)
             : file_get_contents($this->url, false, stream_context_create($arrContextOptions));
+        if(!is_string($contents) || strlen($contents) < 1){
+            $this->info = array("menu" => array());
+            return;
+        }
 
         $rawForJSON = preg_replace("#^.*(<div.*?id\s*=\s*['\"]dining-menu-from-json['\"].*?\\>).*$#s", "$1", $contents);
         $jsonURL = preg_replace("#^.*data-dining-menu-json-url\s*=\s*['\"](.+?)['\"].*$#s", "$1", $rawForJSON);
@@ -79,8 +83,10 @@ class PomonaParser implements DiningHallParser{
             $jsonContents = function_exists("menuWindowFileGetContents")
                 ? menuWindowFileGetContents($jsonURL, $arrContextOptions)
                 : file_get_contents($jsonURL, false, stream_context_create($arrContextOptions));
-            $jsonContents = preg_replace("#^.*?(\\{.+\\}).*?$#", "$1", $jsonContents);
-            $json = json_decode($jsonContents, true, 512, JSON_PARTIAL_OUTPUT_ON_ERROR);
+            if(is_string($jsonContents) && strlen($jsonContents) > 0){
+                $jsonContents = preg_replace("#^.*?(\\{.+\\}).*?$#", "$1", $jsonContents);
+                $json = json_decode($jsonContents, true, 512, JSON_PARTIAL_OUTPUT_ON_ERROR);
+            }
         }
 
         // Note: This should always be the statement that's called
@@ -136,6 +142,9 @@ class PomonaParser implements DiningHallParser{
         $diningHallInfoContents = function_exists("menuWindowFileGetContents")
             ? menuWindowFileGetContents($diningHallInfoURL)
             : file_get_contents($diningHallInfoURL);
+        if(!is_string($diningHallInfoContents) || strlen($diningHallInfoContents) < 1){
+            return [];
+        }
 
         $info = [];
         for($i = 1; $i <= 5; $i++){
