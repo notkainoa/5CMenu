@@ -46,6 +46,14 @@ test('Sodexo publishes plant-based and mindful yes/no and does not infer gluten-
   });
 });
 
+test('Sodexo publishes an explicit isGlutenFree flag when the feed sends it', async () => {
+  const result = await refreshSodexo('hoch', ['2026-09-06'], undefined, async () => jsonResponse([{
+    name: 'LUNCH',
+    groups: [{ name: 'Grill', items: [{ formalName: 'Rice', isGlutenFree: true }] }],
+  }]));
+  assert.equal(result.days[0].meals[0].stations[0].items[0].glutenFree, true);
+});
+
 test('Sodexo reuses parsed results when the downloaded body is unchanged', async () => {
   const body = [{ name: 'DINNER', groups: [{ name: 'Grill', items: [{ formalName: 'Tacos' }] }] }];
   const first = await refreshSodexo('hoch', ['2026-09-06'], undefined, async () => jsonResponse(body));
@@ -61,6 +69,18 @@ test('Sodexo reparses cached dates after a parser version bump so period is publ
   delete stale.dates['2026-09-06'].day.meals[0].period;
   const second = await refreshSodexo('hoch', ['2026-09-06'], stale, async () => jsonResponse(body));
   assert.equal(second.days[0].meals[0].period, 'dinner');
+});
+
+test('Sodexo reparses cached dates after a parser version bump so diet flags are published', async () => {
+  const body = [{ name: 'LUNCH', groups: [{ name: 'Grill', items: [{ formalName: 'Rice', isPlantBased: true, isGlutenFree: true }] }] }];
+  const first = await refreshSodexo('hoch', ['2026-09-06'], undefined, async () => jsonResponse(body));
+  const stale = structuredClone(first.state) as { provider: string; version: number; dates: Record<string, { hash: string; day: { meals: Array<{ stations: Array<{ items: Array<{ plantBased?: boolean; glutenFree?: boolean }> }> }> } }> };
+  stale.version = 1;
+  delete stale.dates['2026-09-06'].day.meals[0].stations[0].items[0].plantBased;
+  delete stale.dates['2026-09-06'].day.meals[0].stations[0].items[0].glutenFree;
+  const second = await refreshSodexo('hoch', ['2026-09-06'], stale, async () => jsonResponse(body));
+  assert.equal(second.days[0].meals[0].stations[0].items[0].plantBased, true);
+  assert.equal(second.days[0].meals[0].stations[0].items[0].glutenFree, true);
 });
 
 test('Sodexo treats an empty date as unpublished and rejects malformed data', async () => {
@@ -142,6 +162,20 @@ test('Pomona reparses cached feeds after a parser version bump so period is publ
     headers: { 'content-type': 'application/json' },
   }));
   assert.equal(second.days[0].meals[0].period, 'lunch');
+});
+
+test('Pomona reparses cached feeds after a parser version bump so diet flags are published', async () => {
+  const menu = { '@servedate': '20260906', '@mealperiodname': 'Lunch', '@menubulletin': '', recipes: { recipe } };
+  const first = await refreshPomona('frary', ['2026-09-06'], undefined, async () => new Response(pomonaJsonp(menu), {
+    headers: { 'content-type': 'application/json' },
+  }));
+  const stale = structuredClone(first.state) as { provider: string; version: number; hash: string; days: Array<{ meals: Array<{ stations: Array<{ items: Array<{ glutenFree?: boolean }> }> }> }> };
+  stale.version = 1;
+  delete stale.days[0].meals[0].stations[0].items[0].glutenFree;
+  const second = await refreshPomona('frary', ['2026-09-06'], stale, async () => new Response(pomonaJsonp(menu), {
+    headers: { 'content-type': 'application/json' },
+  }));
+  assert.equal(second.days[0].meals[0].stations[0].items[0].glutenFree, true);
 });
 
 test('Pomona refetches when a 304 cache covers only part of the requested window', async () => {

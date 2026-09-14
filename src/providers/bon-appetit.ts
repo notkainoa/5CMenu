@@ -15,7 +15,7 @@ import { validTime } from '../dates';
 import { MEAL_PERIODS, withMealPeriod } from '../periods';
 import { refineBonAppetitMeals, type CatalogItem } from './bon-appetit-catalog';
 
-const STATE_VERSION = 5;
+const STATE_VERSION = 6;
 const PROVIDER = 'bon-appetit';
 
 const CAFES = {
@@ -202,7 +202,7 @@ function applyBonAppetitIcons(item: CatalogItem, labels: Set<string>): void {
   if ([...labels].some(label => /\bmindful\b/.test(label))) item.mindful = true;
   for (const label of labels) {
     if (
-      label === 'gluten free' || label === 'gluten-free' || label === 'gluten friendly' ||
+      label === 'gluten free' || label === 'gluten-free' || label === 'gluten friendly' || label === 'gluten-friendly' ||
       label.includes('made without gluten-containing ingredients') ||
       label.includes('made without gluten containing ingredients')
     ) {

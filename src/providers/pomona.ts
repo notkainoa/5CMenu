@@ -9,7 +9,7 @@ const FEEDS = {
 } as const;
 const MAX_BYTES = 2 * 1024 * 1024;
 const TIMEOUT_MS = 15_000;
-const STATE_VERSION = 1;
+const STATE_VERSION = 2;
 
 type JsonRecord = Record<string, unknown>;
 interface PomonaState extends SourceState {
