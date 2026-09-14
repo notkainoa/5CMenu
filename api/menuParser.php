@@ -70,14 +70,19 @@ function canStartMenuWindowFetch($completedFetches, $remainingSeconds){
 }
 
 function menuWindowFetchTimeoutSeconds($remainingSeconds){
-    $timeout = (int)ceil($remainingSeconds);
+    $timeout = (int)floor($remainingSeconds);
     if($timeout < 1){$timeout = 1;}
     $budget = menuWindowFetchBudgetSeconds();
     return $timeout > $budget ? $budget : $timeout;
 }
 
 function currentMenuFetchTimeoutSeconds(){
-    return isset($GLOBALS["MENU_WINDOW_FETCH_TIMEOUT"]) ? intval($GLOBALS["MENU_WINDOW_FETCH_TIMEOUT"]) : menuWindowFetchBudgetSeconds();
+    if(isset($GLOBALS["MENU_WINDOW_FETCH_DEADLINE"])){
+        $remaining = $GLOBALS["MENU_WINDOW_FETCH_DEADLINE"] - microtime(true);
+        if($remaining <= 0){return 0;}
+        return menuWindowFetchTimeoutSeconds($remaining);
+    }
+    return menuWindowFetchBudgetSeconds();
 }
 
 function collectMenuWindow($responses, $menuDays){
@@ -188,13 +193,13 @@ function run($action){
         if(!canStartMenuWindowFetch(count($responses), $remaining)){break;}
         $timeout = menuWindowFetchTimeoutSeconds($remaining > 0 ? $remaining : menuWindowFetchBudgetSeconds());
         $previousTimeout = ini_get("default_socket_timeout");
-        $GLOBALS["MENU_WINDOW_FETCH_TIMEOUT"] = $timeout;
+        $GLOBALS["MENU_WINDOW_FETCH_DEADLINE"] = microtime(true) + ($remaining > 0 ? $remaining : menuWindowFetchBudgetSeconds());
         ini_set("default_socket_timeout", (string)$timeout);
         try {
             $responses[] = fetchMenu($diningHall, $menuDay->getTimestamp(), $source);
         } finally {
             ini_set("default_socket_timeout", $previousTimeout);
-            unset($GLOBALS["MENU_WINDOW_FETCH_TIMEOUT"]);
+            unset($GLOBALS["MENU_WINDOW_FETCH_DEADLINE"]);
         }
         $menu = collectMenuWindow($responses, $menuDays);
         if(count($menu) === count($menuDays)){break;}

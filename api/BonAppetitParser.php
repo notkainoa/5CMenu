@@ -126,6 +126,10 @@ class BonAppetitParser implements DiningHallParser{
         curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0');
         curl_setopt($ch, CURLOPT_BINARYTRANSFER, false);
         $timeout = function_exists("currentMenuFetchTimeoutSeconds") ? currentMenuFetchTimeoutSeconds() : 45;
+        if($timeout < 1){
+            $this->json = null;
+            return;
+        }
         curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
         curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, min(30, $timeout));
         curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
