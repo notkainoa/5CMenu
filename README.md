@@ -153,7 +153,7 @@ See [overhaul-plan.md](overhaul-plan.md) for requirements, task dependencies, an
 
 ## Historical PHP checker
 
-The legacy PHP parsers, Docker Compose file, and browser checker from GitHub `main` remain in the tree as reference. They are not deployed to Cloudflare. The PHP entry point is the `run` function in `api/menuParser.php`.
+The legacy PHP parsers, Docker Compose file, and browser checker from GitHub `main` remain in the tree as reference. They are not deployed to Cloudflare. The PHP entry point is the `run` function in `api/menuParser.php`. The local PHP checker returns the selected day plus the next six calendar days, for up to seven days total. Pass `days=1` through `days=7` to request a shorter window. It only returns dates the upstream dining provider has published.
 
 Run the PHP API and browser checker together with Docker:
 
@@ -178,6 +178,7 @@ node tests/ApiSmokeTest.mjs http://127.0.0.1:8080
 The focused Bon Appétit parser checks run without a local PHP installation:
 
 ```sh
+docker run --rm -v "$PWD:/app" -w /app php:8.4-cli-alpine php tests/MenuWindowTest.php
 docker run --rm -v "$PWD:/app" -w /app php:8.4-cli-alpine php tests/BonAppetitWebParserTest.php
 docker run --rm -v "$PWD:/app" -w /app php:8.4-cli-alpine php tests/LiveBonAppetitCheck.php
 ```

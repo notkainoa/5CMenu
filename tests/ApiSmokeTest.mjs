@@ -18,6 +18,7 @@ await Promise.all(halls.map(async hall => {
     const url = new URL("/api/menu.php", baseURL);
     url.searchParams.set("diningHall", hall);
     url.searchParams.set("startDate", date);
+    url.searchParams.set("days", "1");
     url.searchParams.set("source", "live");
     url.searchParams.set("developer", "true");
 

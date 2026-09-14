@@ -81,7 +81,12 @@ class PomonaGoogleParser {
 
 
 
-        $initialSpreadsheetJSON = json_decode(file_get_contents($this->spreadsheetURL), true);
+        $spreadsheetRaw = function_exists("menuWindowFileGetContents")
+            ? menuWindowFileGetContents($this->spreadsheetURL)
+            : file_get_contents($this->spreadsheetURL);
+        if(!is_string($spreadsheetRaw) || strlen($spreadsheetRaw) < 1){return null;}
+        $initialSpreadsheetJSON = json_decode($spreadsheetRaw, true);
+        if(!is_array($initialSpreadsheetJSON) || !isset($initialSpreadsheetJSON["feed"]["entry"])){return null;}
 
         $entries = $initialSpreadsheetJSON["feed"]["entry"];
         $monday = $this->nearestMonday();
@@ -148,8 +153,26 @@ class PomonaGoogleParser {
         $rowCount = $info[1];
         $colCount = $info[2];
         //echo("JSONURL START-- $jsonURL  --END");
-        $raw = file_get_contents($jsonURL);
+        $raw = function_exists("menuWindowFileGetContents")
+            ? menuWindowFileGetContents($jsonURL)
+            : file_get_contents($jsonURL);
+        if(!is_string($raw) || strlen($raw) < 1){
+            $this->info = array(
+                "messages" => [
+                    "screenMessage" => "We're having issues with Pomona right now. Check back soon."
+                ]
+            );
+            return;
+        }
         $json = json_decode($raw, true);
+        if(!is_array($json) || !isset($json["feed"]["entry"])){
+            $this->info = array(
+                "messages" => [
+                    "screenMessage" => "We're having issues with Pomona right now. Check back soon."
+                ]
+            );
+            return;
+        }
 
         $sorted = array();
         foreach($json["feed"]["entry"] as $entry){
@@ -191,16 +214,18 @@ class PomonaGoogleParser {
 
                     $dayType = strtolower(date("D", $mealTime));
 
-                    list($startHour, $startMinute, $endHour, $endMinute) = PomonaParser::getHoursForMeal($hoursInfo, $dayType, $x);
+                    $mealHours = PomonaParser::getHoursForMeal($hoursInfo, $dayType, $x);
+                    if(is_array($mealHours) && count($mealHours) >= 4){
+                        list($startHour, $startMinute, $endHour, $endMinute) = $mealHours;
+                        $startTime = PomonaGoogleParser::makeTime($year, $month, $day, $startHour, $startMinute);
+                        $endTime = PomonaGoogleParser::makeTime($year, $month, $day, $endHour, $endMinute);
 
-                    $startTime = PomonaGoogleParser::makeTime($year, $month, $day, $startHour, $startMinute);
-                    $endTime = PomonaGoogleParser::makeTime($year, $month, $day, $endHour, $endMinute);
-
-                    if($startHour == 0 && $startMinute == 0 && $endTime == 0 && $endMinute == 0){
-                        $arr["meals"][$x]["friendlyHours"] = "";
+                        if($startHour == 0 && $startMinute == 0 && $endTime == 0 && $endMinute == 0){
+                            $arr["meals"][$x]["friendlyHours"] = "";
+                        }
+                        $arr["meals"][$x]["startTime"] = $startTime;
+                        $arr["meals"][$x]["endTime"] = $endTime;
                     }
-                    $arr["meals"][$x]["startTime"] = $startTime;
-                    $arr["meals"][$x]["endTime"] = $endTime;
 
                     $stationsCurrent = $arr["meals"][$x]["stations"];
                     usort($stationsCurrent, function ($item1, $item2) {
