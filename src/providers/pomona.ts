@@ -1,5 +1,6 @@
 import type { Meal, MenuItem, ParsedDay, RefreshHall, SourceState, Station } from '../types';
 import { isValidDate } from '../dates';
+import { uniqueSortedAllergens } from '../allergens';
 import { withMealPeriod } from '../periods';
 
 const FEEDS = {
@@ -9,7 +10,7 @@ const FEEDS = {
 } as const;
 const MAX_BYTES = 2 * 1024 * 1024;
 const TIMEOUT_MS = 15_000;
-const STATE_VERSION = 2;
+const STATE_VERSION = 3;
 
 type JsonRecord = Record<string, unknown>;
 interface PomonaState extends SourceState {
@@ -48,6 +49,17 @@ function yesNo(value: unknown, id: string): boolean | undefined {
   return undefined;
 }
 
+function presentAllergens(value: unknown): string[] | undefined {
+  if (!isRecord(value)) return undefined;
+  const labels: string[] = [];
+  for (const entry of oneOrMany(value.allergen)) {
+    if (!isRecord(entry) || typeof entry['@id'] !== 'string' || typeof entry['#text'] !== 'string') continue;
+    if (entry['#text'].trim().toLowerCase() !== 'yes') continue;
+    labels.push(entry['@id']);
+  }
+  return uniqueSortedAllergens(labels);
+}
+
 function parseItem(value: unknown, calorieIndex: number): { station: string; item: MenuItem } {
   if (!isRecord(value)) throw new Error('Pomona returned a malformed recipe');
   const name = requiredString(value, '@shortName', 'a recipe');
@@ -73,6 +85,8 @@ function parseItem(value: unknown, calorieIndex: number): { station: string; ite
   if (containsPork !== undefined) item.containsPork = containsPork;
   if (containsBeef !== undefined) item.containsBeef = containsBeef;
   if (containsPoultry !== undefined) item.containsPoultry = containsPoultry;
+  const allergens = presentAllergens(value.allergens);
+  if (allergens) item.allergens = allergens;
   const nutrients = value['@nutrients'];
   if (typeof nutrients === 'string' && calorieIndex >= 0) {
     const raw = nutrients.split('|')[calorieIndex]?.trim();

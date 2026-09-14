@@ -26,6 +26,7 @@ export interface MenuItem {
   containsPoultry?: boolean;
   featured?: boolean;
   calories?: number;
+  allergens?: string[];
 }
 export interface Station { name: string; items: MenuItem[]; }
 export interface Meal {

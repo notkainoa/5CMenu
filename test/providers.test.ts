@@ -54,6 +54,26 @@ test('Sodexo publishes an explicit isGlutenFree flag when the feed sends it', as
   assert.equal(result.days[0].meals[0].stations[0].items[0].glutenFree, true);
 });
 
+test('Sodexo publishes present allergens as a sorted lowercase list', async () => {
+  const result = await refreshSodexo('hoch', ['2026-09-06'], undefined, async () => jsonResponse([{
+    name: 'BREAKFAST',
+    groups: [{ name: 'Bakery', items: [{
+      formalName: 'Mini Chocolate Croissant', isVegetarian: true, calories: '100',
+      allergens: [
+        { allergen: 'Soy', name: 'Soy', contains: 'true' },
+        { allergen: 'Milk', name: 'Milk', contains: 'true' },
+        { allergen: 'Gluten', name: 'Gluten', contains: 'true' },
+        { allergen: 'Wheat', name: 'Wheat', contains: 'true' },
+        { allergen: 'Peanut', name: 'Peanut', contains: 'false' },
+      ],
+    }] }],
+  }]));
+  assert.deepEqual(result.days[0].meals[0].stations[0].items[0], {
+    name: 'Mini Chocolate Croissant', vegetarian: true, calories: 100,
+    allergens: ['gluten', 'milk', 'soy', 'wheat'],
+  });
+});
+
 test('Sodexo reuses parsed results when the downloaded body is unchanged', async () => {
   const body = [{ name: 'DINNER', groups: [{ name: 'Grill', items: [{ formalName: 'Tacos' }] }] }];
   const first = await refreshSodexo('hoch', ['2026-09-06'], undefined, async () => jsonResponse(body));
@@ -83,6 +103,19 @@ test('Sodexo reparses cached dates after a parser version bump so diet flags are
   assert.equal(second.days[0].meals[0].stations[0].items[0].glutenFree, true);
 });
 
+test('Sodexo reparses cached dates after a parser version bump so allergens are published', async () => {
+  const body = [{ name: 'LUNCH', groups: [{ name: 'Grill', items: [{
+    formalName: 'Rice',
+    allergens: [{ allergen: 'Soy', name: 'Soy', contains: 'true' }, { allergen: 'Milk', name: 'Milk', contains: 'true' }],
+  }] }] }];
+  const first = await refreshSodexo('hoch', ['2026-09-06'], undefined, async () => jsonResponse(body));
+  const stale = structuredClone(first.state) as { provider: string; version: number; dates: Record<string, { hash: string; day: { meals: Array<{ stations: Array<{ items: Array<{ allergens?: string[] }> }> }> } }> };
+  stale.version = 2;
+  delete stale.dates['2026-09-06'].day.meals[0].stations[0].items[0].allergens;
+  const second = await refreshSodexo('hoch', ['2026-09-06'], stale, async () => jsonResponse(body));
+  assert.deepEqual(second.days[0].meals[0].stations[0].items[0].allergens, ['milk', 'soy']);
+});
+
 test('Sodexo treats an empty date as unpublished and rejects malformed data', async () => {
   const missing = await refreshSodexo('hoch', ['2026-09-06'], undefined, async () => jsonResponse([]));
   assert.deepEqual(missing.days, []);
@@ -106,6 +139,13 @@ const recipe = {
     { '@id': 'Gluten Free', '#text': 'Yes' }, { '@id': 'Halal', '#text': 'No' },
     { '@id': 'Contains Pork', '#text': 'Yes' }, { '@id': 'Organic', '#text': 'Yes' },
   ] },
+  allergens: { allergen: [
+    { '@id': 'Soy', '#text': 'Yes' },
+    { '@id': 'Tree Nut (Walnut)', '#text': 'Yes' },
+    { '@id': 'Tree Nut (Almond)', '#text': 'Yes' },
+    { '@id': 'Milk', '#text': 'No' },
+    { '@id': 'Egg', '#text': 'Yes' },
+  ] },
 };
 
 test('Pomona groups records into meals and stations without dropping recipes', async () => {
@@ -124,6 +164,7 @@ test('Pomona groups records into meals and stations without dropping recipes', a
   assert.deepEqual(result.days[0].meals[0].stations[0].items[0], {
     name: 'Vegetable Curry', description: 'With rice', vegetarian: true, vegan: false,
     glutenFree: true, halal: false, containsPork: true, calories: 245.5,
+    allergens: ['egg', 'soy', 'treenut'],
   });
   assert.equal(result.state.etag, '"abc"');
 });
@@ -176,6 +217,20 @@ test('Pomona reparses cached feeds after a parser version bump so diet flags are
     headers: { 'content-type': 'application/json' },
   }));
   assert.equal(second.days[0].meals[0].stations[0].items[0].glutenFree, true);
+});
+
+test('Pomona reparses cached feeds after a parser version bump so allergens are published', async () => {
+  const menu = { '@servedate': '20260906', '@mealperiodname': 'Lunch', '@menubulletin': '', recipes: { recipe } };
+  const first = await refreshPomona('frary', ['2026-09-06'], undefined, async () => new Response(pomonaJsonp(menu), {
+    headers: { 'content-type': 'application/json' },
+  }));
+  const stale = structuredClone(first.state) as { provider: string; version: number; hash: string; days: Array<{ meals: Array<{ stations: Array<{ items: Array<{ allergens?: string[] }> }> }> }> };
+  stale.version = 2;
+  delete stale.days[0].meals[0].stations[0].items[0].allergens;
+  const second = await refreshPomona('frary', ['2026-09-06'], stale, async () => new Response(pomonaJsonp(menu), {
+    headers: { 'content-type': 'application/json' },
+  }));
+  assert.deepEqual(second.days[0].meals[0].stations[0].items[0].allergens, ['egg', 'soy', 'treenut']);
 });
 
 test('Pomona refetches when a 304 cache covers only part of the requested window', async () => {

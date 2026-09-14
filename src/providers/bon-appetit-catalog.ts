@@ -278,6 +278,7 @@ function publicItem(item: CatalogItem): MenuItem | undefined {
   const featured = featuredFlag(item);
   if (featured !== undefined) published.featured = featured;
   if (item.calories !== undefined) published.calories = item.calories;
+  if (item.allergens && item.allergens.length > 0) published.allergens = item.allergens;
   return published;
 }
 
