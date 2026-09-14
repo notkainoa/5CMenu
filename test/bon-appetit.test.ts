@@ -184,6 +184,16 @@ describe('refreshBonAppetit', () => {
     assert.equal(second.days[0].meals[0].stations[0].items[0].featured, true);
   });
 
+  it('reparses pages cached under an older parser version so period is published', async () => {
+    const first = await refreshBonAppetit('collins', [DATE], undefined, async () => response(fixture()));
+    const stale = structuredClone(first.state) as SourceState & { version: number };
+    stale.version = 4;
+    const pages = stale.pages as Record<string, { day: { meals: Array<{ name: string; period?: string }> } }>;
+    for (const meal of pages[DATE].day.meals) delete meal.period;
+    const second = await refreshBonAppetit('collins', [DATE], stale, async () => response(fixture()));
+    assert.equal(second.days[0].meals[0].period, 'breakfast');
+  });
+
   it('ignores malformed state and does not send its validator', async () => {
     let requestHeaders: Headers | undefined;
     const malformed = {
