@@ -10,7 +10,12 @@ function fixture(date = DATE, itemSuffix = ''): string {
   const items = {
     '101': {
       label: 'tofu &amp; greens', description: 'Ginger <br> sauce', special: 1,
-      cor_icon: { '4': 'Vegan' }, nutrition_details: { calories: { value: '240' } },
+      cor_icon: {
+        '4': 'Vegan',
+        '8': 'Made without Gluten-Containing Ingredients',
+        '9': 'Farm to Fork',
+        '10': 'Wheat/Gluten',
+      }, nutrition_details: { calories: { value: '240' } },
     },
     '102': {
       label: 'mac &amp; cheese', description: '', special: 0,
@@ -18,7 +23,7 @@ function fixture(date = DATE, itemSuffix = ''): string {
     },
     '103': {
       label: `chef&#039;s choice${itemSuffix}`, description: 'No nutrition published',
-      ordered_cor_icon: { first: { label: 'Vegetarian' } }, nutrition: { kcal: '180' },
+      ordered_cor_icon: { first: { label: 'Vegetarian' }, second: { label: 'Halal' }, third: { label: 'Mindful' } }, nutrition: { kcal: '180' },
     },
   };
   return `<!doctype html><html><body>
@@ -81,18 +86,19 @@ describe('parseBonAppetitPage', () => {
         {
           name: 'Breakfast', period: 'breakfast', startTime: '07:30', endTime: '09:00', stations: [
             { name: "Chef's Table & Grill", items: [
-              { name: 'tofu & greens', description: 'Ginger sauce', vegan: true, featured: true, calories: 240 },
+              { name: 'tofu & greens', description: 'Ginger sauce', vegan: true, glutenFree: true, featured: true, calories: 240 },
             ] },
-            { name: 'Pantry', items: [{ name: "chef's choice", description: 'No nutrition published', vegetarian: true, calories: 180 }] },
+            { name: 'Pantry', items: [{ name: "chef's choice", description: 'No nutrition published', vegetarian: true, halal: true, mindful: true, calories: 180 }] },
           ],
         },
         {
           name: 'Lunch', period: 'lunch', startTime: '11:00', endTime: '13:00',
-          stations: [{ name: 'Global', items: [{ name: 'tofu & greens', description: 'Ginger sauce', vegan: true, featured: true, calories: 240 }] }],
+          stations: [{ name: 'Global', items: [{ name: 'tofu & greens', description: 'Ginger sauce', vegan: true, glutenFree: true, featured: true, calories: 240 }] }],
         },
       ],
     });
     assert.equal(day?.meals[0].stations[0].items[0].vegetarian, undefined);
+    assert.equal(day?.meals[0].stations[0].items[0].mindful, undefined);
     assert.equal(day?.meals[0].stations[1].items[0].calories, 180);
     assert.equal(day?.meals[0].stations[1].items[0].featured, undefined);
   });

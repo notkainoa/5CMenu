@@ -16,6 +16,14 @@ export interface MenuItem {
   description?: string;
   vegan?: boolean;
   vegetarian?: boolean;
+  glutenFree?: boolean;
+  halal?: boolean;
+  kosher?: boolean;
+  mindful?: boolean;
+  plantBased?: boolean;
+  containsPork?: boolean;
+  containsBeef?: boolean;
+  containsPoultry?: boolean;
   featured?: boolean;
   calories?: number;
 }

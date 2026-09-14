@@ -55,6 +55,9 @@ function parseItem(value: unknown): MenuItem {
   if (description) item.description = decodeEntities(description);
   if (typeof value.isVegan === 'boolean') item.vegan = value.isVegan;
   if (typeof value.isVegetarian === 'boolean') item.vegetarian = value.isVegetarian;
+  if (typeof value.isPlantBased === 'boolean') item.plantBased = value.isPlantBased;
+  if (typeof value.isMindful === 'boolean') item.mindful = value.isMindful;
+  if (typeof value.isGlutenFree === 'boolean') item.glutenFree = value.isGlutenFree;
   const calories = parseCalories(value.calories);
   if (calories !== undefined) item.calories = calories;
   return item;

@@ -57,6 +57,20 @@ function parseItem(value: unknown, calorieIndex: number): { station: string; ite
   const vegan = yesNo(value.dietaryChoices, 'Vegan');
   if (vegetarian !== undefined) item.vegetarian = vegetarian;
   if (vegan !== undefined) item.vegan = vegan;
+  const glutenFree = yesNo(value.dietaryChoices, 'Gluten Free');
+  const halal = yesNo(value.dietaryChoices, 'Halal');
+  const kosher = yesNo(value.dietaryChoices, 'Kosher');
+  const mindful = yesNo(value.dietaryChoices, 'Mindful Mondays');
+  const containsPork = yesNo(value.dietaryChoices, 'Contains Pork');
+  const containsBeef = yesNo(value.dietaryChoices, 'Contains Beef');
+  const containsPoultry = yesNo(value.dietaryChoices, 'Contains Poultry');
+  if (glutenFree !== undefined) item.glutenFree = glutenFree;
+  if (halal !== undefined) item.halal = halal;
+  if (kosher !== undefined) item.kosher = kosher;
+  if (mindful !== undefined) item.mindful = mindful;
+  if (containsPork !== undefined) item.containsPork = containsPork;
+  if (containsBeef !== undefined) item.containsBeef = containsBeef;
+  if (containsPoultry !== undefined) item.containsPoultry = containsPoultry;
   const nutrients = value['@nutrients'];
   if (typeof nutrients === 'string' && calorieIndex >= 0) {
     const raw = nutrients.split('|')[calorieIndex]?.trim();

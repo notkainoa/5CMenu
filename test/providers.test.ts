@@ -18,7 +18,7 @@ test('Sodexo reads exact dates and preserves known item fields', async () => {
       name: 'LUNCH',
       groups: [{ name: 'CHEF &amp; CORNER', items: [{
         formalName: 'Rice &amp; Beans', description: 'With vegetables',
-        isVegan: true, isVegetarian: true, calories: '320',
+        isVegan: true, isVegetarian: true, isPlantBased: true, isMindful: true, calories: '320',
       }] }],
     }]);
   };
@@ -27,8 +27,22 @@ test('Sodexo reads exact dates and preserves known item fields', async () => {
   assert.match(calls[1], /date=2026-09-07$/);
   assert.deepEqual(result.days[0], {
     date: '2026-09-06', status: 'ok', meals: [{ name: 'LUNCH', period: 'lunch', stations: [{
-      name: 'CHEF & CORNER', items: [{ name: 'Rice & Beans', description: 'With vegetables', vegan: true, vegetarian: true, calories: 320 }],
+      name: 'CHEF & CORNER', items: [{ name: 'Rice & Beans', description: 'With vegetables', vegan: true, vegetarian: true, plantBased: true, mindful: true, calories: 320 }],
     }] }],
+  });
+});
+
+test('Sodexo publishes plant-based and mindful yes/no and does not infer gluten-free from allergens', async () => {
+  const result = await refreshSodexo('hoch', ['2026-09-06'], undefined, async () => jsonResponse([{
+    name: 'LUNCH',
+    groups: [{ name: 'Grill', items: [{
+      formalName: 'Burger',
+      isVegan: false, isVegetarian: false, isPlantBased: false, isMindful: false, isSwell: true,
+      allergens: [{ allergen: 'Gluten', name: 'Gluten', contains: 'false' }],
+    }] }],
+  }]));
+  assert.deepEqual(result.days[0].meals[0].stations[0].items[0], {
+    name: 'Burger', vegan: false, vegetarian: false, plantBased: false, mindful: false,
   });
 });
 
@@ -57,7 +71,11 @@ function pomonaJsonp(menu: unknown): string {
 const recipe = {
   '@shortName': 'Vegetable Curry', '@category': 'Expo Station', '@itemDailyComment': 'With rice',
   '@nutrients': '245.5|10|2',
-  dietaryChoices: { dietaryChoice: [{ '@id': 'Vegetarian', '#text': 'Yes' }, { '@id': 'Vegan', '#text': 'No' }] },
+  dietaryChoices: { dietaryChoice: [
+    { '@id': 'Vegetarian', '#text': 'Yes' }, { '@id': 'Vegan', '#text': 'No' },
+    { '@id': 'Gluten Free', '#text': 'Yes' }, { '@id': 'Halal', '#text': 'No' },
+    { '@id': 'Contains Pork', '#text': 'Yes' }, { '@id': 'Organic', '#text': 'Yes' },
+  ] },
 };
 
 test('Pomona groups records into meals and stations without dropping recipes', async () => {
@@ -74,7 +92,8 @@ test('Pomona groups records into meals and stations without dropping recipes', a
   assert.equal(result.days[0].meals[1].period, 'dinner');
   assert.equal(result.days[0].meals[0].stations[0].items.length, 2);
   assert.deepEqual(result.days[0].meals[0].stations[0].items[0], {
-    name: 'Vegetable Curry', description: 'With rice', vegetarian: true, vegan: false, calories: 245.5,
+    name: 'Vegetable Curry', description: 'With rice', vegetarian: true, vegan: false,
+    glutenFree: true, halal: false, containsPork: true, calories: 245.5,
   });
   assert.equal(result.state.etag, '"abc"');
 });

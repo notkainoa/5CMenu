@@ -192,6 +192,24 @@ function calorieValue(value: unknown): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
+function applyBonAppetitIcons(item: CatalogItem, labels: Set<string>): void {
+  if (labels.has('vegan')) item.vegan = true;
+  if (labels.has('vegetarian')) item.vegetarian = true;
+  if (labels.has('halal')) item.halal = true;
+  if (labels.has('kosher')) item.kosher = true;
+  if ([...labels].some(label => /\bmindful\b/.test(label))) item.mindful = true;
+  for (const label of labels) {
+    if (
+      label === 'gluten free' || label === 'gluten-free' || label === 'gluten friendly' ||
+      label.includes('made without gluten-containing ingredients') ||
+      label.includes('made without gluten containing ingredients')
+    ) {
+      item.glutenFree = true;
+      break;
+    }
+  }
+}
+
 function parseItem(value: unknown): CatalogItem {
   if (!isRecord(value) || typeof value.label !== 'string') throw new Error('Bon Appétit menu item lacks a label');
   const name = textContent(value.label);
@@ -216,8 +234,7 @@ function parseItem(value: unknown): CatalogItem {
       if (isRecord(icon) && typeof icon.label === 'string') iconLabels.add(icon.label.trim().toLowerCase());
     }
   }
-  if (iconLabels.has('vegan')) item.vegan = true;
-  if (iconLabels.has('vegetarian')) item.vegetarian = true;
+  applyBonAppetitIcons(item, iconLabels);
 
   const detailedCalories = isRecord(value.nutrition_details) && isRecord(value.nutrition_details.calories)
     ? calorieValue(value.nutrition_details.calories.value) : undefined;
