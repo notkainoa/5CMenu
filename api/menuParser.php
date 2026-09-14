@@ -56,6 +56,15 @@ function menuWindowDays($startTime, $days){
     return $menuDays;
 }
 
+function menuWindowFetchBudgetSeconds(){
+    return 45;
+}
+
+function canStartMenuWindowFetch($completedFetches, $elapsedSeconds, $budgetSeconds = null){
+    if($budgetSeconds === null){$budgetSeconds = menuWindowFetchBudgetSeconds();}
+    return $completedFetches === 0 || $elapsedSeconds < $budgetSeconds;
+}
+
 function collectMenuWindow($responses, $menuDays){
     $allowedDates = array();
     foreach($menuDays as $menuDay){
@@ -157,8 +166,10 @@ function run($action){
     $source = strtolower((string)param("source", ""));
     $menuDays = menuWindowDays($startTime, $days);
     $responses = array();
+    $startedAt = microtime(true);
 
     foreach($menuDays as $menuDay){
+        if(!canStartMenuWindowFetch(count($responses), microtime(true) - $startedAt)){break;}
         $responses[] = fetchMenu($diningHall, $menuDay->getTimestamp(), $source);
         $menu = collectMenuWindow($responses, $menuDays);
         if(count($menu) === count($menuDays)){break;}

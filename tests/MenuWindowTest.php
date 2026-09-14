@@ -40,4 +40,9 @@ assertSameValue(
     "the response should keep only the seven-day window, sort it, and retain the first result for duplicate dates"
 );
 
+$budget = menuWindowFetchBudgetSeconds();
+assertSameValue(true, canStartMenuWindowFetch(0, $budget + 10, $budget), "the first fetch should start even if the budget is already exhausted");
+assertSameValue(true, canStartMenuWindowFetch(1, $budget - 0.01, $budget), "later fetches should start while time remains in the overall budget");
+assertSameValue(false, canStartMenuWindowFetch(1, $budget, $budget), "later fetches should stop once the overall budget is exhausted so a slow provider still yields a partial window");
+
 fwrite(STDOUT, "PASS: menu window checks\n");
