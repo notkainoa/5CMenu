@@ -63,7 +63,9 @@ class PomonaParser implements DiningHallParser{
         );
 
 
-        $contents = file_get_contents($this->url, false, stream_context_create($arrContextOptions));
+        $contents = function_exists("menuWindowFileGetContents")
+            ? menuWindowFileGetContents($this->url, $arrContextOptions)
+            : file_get_contents($this->url, false, stream_context_create($arrContextOptions));
 
         $rawForJSON = preg_replace("#^.*(<div.*?id\s*=\s*['\"]dining-menu-from-json['\"].*?\\>).*$#s", "$1", $contents);
         $jsonURL = preg_replace("#^.*data-dining-menu-json-url\s*=\s*['\"](.+?)['\"].*$#s", "$1", $rawForJSON);
@@ -74,7 +76,9 @@ class PomonaParser implements DiningHallParser{
 
         $json = null;
         if($jsonURL != null && strlen($jsonURL) > 0){
-            $jsonContents = file_get_contents($jsonURL, false, stream_context_create($arrContextOptions));
+            $jsonContents = function_exists("menuWindowFileGetContents")
+                ? menuWindowFileGetContents($jsonURL, $arrContextOptions)
+                : file_get_contents($jsonURL, false, stream_context_create($arrContextOptions));
             $jsonContents = preg_replace("#^.*?(\\{.+\\}).*?$#", "$1", $jsonContents);
             $json = json_decode($jsonContents, true, 512, JSON_PARTIAL_OUTPUT_ON_ERROR);
         }
@@ -129,7 +133,9 @@ class PomonaParser implements DiningHallParser{
 
     static function fetchHoursInfo($site){
         $diningHallInfoURL = "https://www.pomona.edu/administration/dining/menus/$site";
-        $diningHallInfoContents = file_get_contents($diningHallInfoURL);
+        $diningHallInfoContents = function_exists("menuWindowFileGetContents")
+            ? menuWindowFileGetContents($diningHallInfoURL)
+            : file_get_contents($diningHallInfoURL);
 
         $info = [];
         for($i = 1; $i <= 5; $i++){

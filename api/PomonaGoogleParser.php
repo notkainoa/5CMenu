@@ -81,7 +81,9 @@ class PomonaGoogleParser {
 
 
 
-        $initialSpreadsheetJSON = json_decode(file_get_contents($this->spreadsheetURL), true);
+        $initialSpreadsheetJSON = json_decode(function_exists("menuWindowFileGetContents")
+            ? menuWindowFileGetContents($this->spreadsheetURL)
+            : file_get_contents($this->spreadsheetURL), true);
 
         $entries = $initialSpreadsheetJSON["feed"]["entry"];
         $monday = $this->nearestMonday();
@@ -148,7 +150,9 @@ class PomonaGoogleParser {
         $rowCount = $info[1];
         $colCount = $info[2];
         //echo("JSONURL START-- $jsonURL  --END");
-        $raw = file_get_contents($jsonURL);
+        $raw = function_exists("menuWindowFileGetContents")
+            ? menuWindowFileGetContents($jsonURL)
+            : file_get_contents($jsonURL);
         $json = json_decode($raw, true);
 
         $sorted = array();

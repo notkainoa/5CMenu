@@ -106,7 +106,9 @@ class SodexoParser implements DiningHallParser{
 //
 //        }
 
-        $contents = file_get_contents($this->url);
+        $contents = function_exists("menuWindowFileGetContents")
+            ? menuWindowFileGetContents($this->url)
+            : file_get_contents($this->url);
         //print_r($contents);
         //$raw = preg_replace("#^(.+?)$#is", "$1", $contents);
         //echo $raw;

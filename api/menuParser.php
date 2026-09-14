@@ -85,6 +85,14 @@ function currentMenuFetchTimeoutSeconds(){
     return menuWindowFetchBudgetSeconds();
 }
 
+function menuWindowFileGetContents($url, $contextOptions = array()){
+    $timeout = currentMenuFetchTimeoutSeconds();
+    if($timeout < 1){return false;}
+    if(!isset($contextOptions["http"])){$contextOptions["http"] = array();}
+    $contextOptions["http"]["timeout"] = $timeout;
+    return file_get_contents($url, false, stream_context_create($contextOptions));
+}
+
 function collectMenuWindow($responses, $menuDays){
     $allowedDates = array();
     foreach($menuDays as $menuDay){

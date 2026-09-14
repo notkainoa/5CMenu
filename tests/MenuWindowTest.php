@@ -54,6 +54,7 @@ $GLOBALS["MENU_WINDOW_FETCH_DEADLINE"] = microtime(true) + 12.4;
 assertSameValue(12, currentMenuFetchTimeoutSeconds(), "nested fetches should compute timeout from the remaining deadline");
 $GLOBALS["MENU_WINDOW_FETCH_DEADLINE"] = microtime(true) - 1;
 assertSameValue(0, currentMenuFetchTimeoutSeconds(), "nested fetches should stop once the deadline has passed");
+assertSameValue(false, menuWindowFileGetContents("https://example.invalid"), "stream fetches should skip once the deadline has passed");
 unset($GLOBALS["MENU_WINDOW_FETCH_DEADLINE"]);
 
 fwrite(STDOUT, "PASS: menu window checks\n");
