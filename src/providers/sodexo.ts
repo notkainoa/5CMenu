@@ -1,4 +1,5 @@
 import type { ApiError, MenuItem, ParsedDay, RefreshHall, SourceState } from '../types';
+import { uniqueSortedAllergens, containsAllergen } from '../allergens';
 import { withMealPeriod } from '../periods';
 
 const API_URL = 'https://api-prd.sodexomyway.net/v0.2/data/menu/13147001/15258';
@@ -60,6 +61,15 @@ function parseItem(value: unknown): MenuItem {
   if (typeof value.isGlutenFree === 'boolean') item.glutenFree = value.isGlutenFree;
   const calories = parseCalories(value.calories);
   if (calories !== undefined) item.calories = calories;
+  const allergenLabels = Array.isArray(value.allergens)
+    ? value.allergens.flatMap(entry => {
+      if (!isRecord(entry) || !containsAllergen(entry.contains)) return [];
+      const label = typeof entry.allergen === 'string' ? entry.allergen : typeof entry.name === 'string' ? entry.name : '';
+      return label ? [label] : [];
+    })
+    : [];
+  const allergens = uniqueSortedAllergens(allergenLabels);
+  if (allergens) item.allergens = allergens;
   return item;
 }
 

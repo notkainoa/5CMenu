@@ -46,6 +46,26 @@ test('Sodexo publishes plant-based and mindful yes/no and does not infer gluten-
   });
 });
 
+test('Sodexo publishes present allergens as a sorted lowercase list', async () => {
+  const result = await refreshSodexo('hoch', ['2026-09-06'], undefined, async () => jsonResponse([{
+    name: 'BREAKFAST',
+    groups: [{ name: 'Bakery', items: [{
+      formalName: 'Mini Chocolate Croissant', isVegetarian: true, calories: '100',
+      allergens: [
+        { allergen: 'Soy', name: 'Soy', contains: 'true' },
+        { allergen: 'Milk', name: 'Milk', contains: 'true' },
+        { allergen: 'Gluten', name: 'Gluten', contains: 'true' },
+        { allergen: 'Wheat', name: 'Wheat', contains: 'true' },
+        { allergen: 'Peanut', name: 'Peanut', contains: 'false' },
+      ],
+    }] }],
+  }]));
+  assert.deepEqual(result.days[0].meals[0].stations[0].items[0], {
+    name: 'Mini Chocolate Croissant', vegetarian: true, calories: 100,
+    allergens: ['gluten', 'milk', 'soy', 'wheat'],
+  });
+});
+
 test('Sodexo reuses parsed results when the downloaded body is unchanged', async () => {
   const body = [{ name: 'DINNER', groups: [{ name: 'Grill', items: [{ formalName: 'Tacos' }] }] }];
   const first = await refreshSodexo('hoch', ['2026-09-06'], undefined, async () => jsonResponse(body));
@@ -76,6 +96,13 @@ const recipe = {
     { '@id': 'Gluten Free', '#text': 'Yes' }, { '@id': 'Halal', '#text': 'No' },
     { '@id': 'Contains Pork', '#text': 'Yes' }, { '@id': 'Organic', '#text': 'Yes' },
   ] },
+  allergens: { allergen: [
+    { '@id': 'Soy', '#text': 'Yes' },
+    { '@id': 'Tree Nut (Walnut)', '#text': 'Yes' },
+    { '@id': 'Tree Nut (Almond)', '#text': 'Yes' },
+    { '@id': 'Milk', '#text': 'No' },
+    { '@id': 'Egg', '#text': 'Yes' },
+  ] },
 };
 
 test('Pomona groups records into meals and stations without dropping recipes', async () => {
@@ -94,6 +121,7 @@ test('Pomona groups records into meals and stations without dropping recipes', a
   assert.deepEqual(result.days[0].meals[0].stations[0].items[0], {
     name: 'Vegetable Curry', description: 'With rice', vegetarian: true, vegan: false,
     glutenFree: true, halal: false, containsPork: true, calories: 245.5,
+    allergens: ['egg', 'soy', 'treenut'],
   });
   assert.equal(result.state.etag, '"abc"');
 });

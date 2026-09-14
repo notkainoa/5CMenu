@@ -182,3 +182,8 @@ test('stored items accept explicit diet no values and reject non-boolean diet fl
   assert.equal(validMeals([{ name: 'Lunch', stations: [{ name: 'Main', items: [{ name: 'Pasta', glutenFree: false, plantBased: true }] }] }]), true);
   assert.equal(validMeals([{ name: 'Lunch', stations: [{ name: 'Main', items: [{ name: 'Pasta', glutenFree: 'yes' }] }] }]), false);
 });
+
+test('stored items accept a non-empty allergen list and reject an empty one', () => {
+  assert.equal(validMeals([{ name: 'Lunch', stations: [{ name: 'Main', items: [{ name: 'Pasta', allergens: ['milk', 'wheat'] }] }] }]), true);
+  assert.equal(validMeals([{ name: 'Lunch', stations: [{ name: 'Main', items: [{ name: 'Pasta', allergens: [] }] }] }]), false);
+});
