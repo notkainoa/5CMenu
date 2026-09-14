@@ -11,7 +11,7 @@ export function mealPeriod(name: string): MealPeriod | undefined {
   return undefined;
 }
 
-export function withMealPeriod<T extends { name: string }>(meal: T): T {
+export function withMealPeriod<T extends { name: string }>(meal: T): T & { period?: MealPeriod } {
   const period = mealPeriod(meal.name);
   if (period === undefined) return meal;
   return { ...meal, period };

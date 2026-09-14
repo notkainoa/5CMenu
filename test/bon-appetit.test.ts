@@ -113,6 +113,17 @@ describe('parseBonAppetitPage', () => {
     assert.equal(parseBonAppetitPage(html, TOMORROW), null);
   });
 
+  it('treats a Gluten-Friendly icon as glutenFree', () => {
+    const html = `<script>Bamco.menu_items = {"201":{"label":"quinoa bowl","cor_icon":{"1":"Gluten-Friendly"}}};</script>
+      <section class="site-panel--daypart" data-jump-nav-title="Lunch">
+        <div class="site-panel__daypart-container" data-end-date="${DATE}">
+          <h3 class="site-panel__daypart-station-title">Main</h3>
+          <div class="site-panel__daypart-item" data-id="201"></div>
+        </div>
+      </section>`;
+    assert.equal(parseBonAppetitPage(html, DATE)?.meals[0].stations[0].items[0].glutenFree, true);
+  });
+
   it('rejects dated but unexplained empty or inconsistent menu markup', () => {
     const empty = `<script>Bamco.menu_items = {};</script><section class="site-panel--daypart" data-jump-nav-title="Dinner"><div class="site-panel__daypart-container" data-end-date="${DATE}"></div></section>`;
     assert.throws(() => parseBonAppetitPage(empty, DATE), /no menu items/);
@@ -170,6 +181,52 @@ describe('refreshBonAppetit', () => {
     pages[DATE].day.meals[0].stations[0].items[0].name = 'trusted cached parse';
     const second = await refreshBonAppetit('mcconnell', [DATE], cached, async () => response(fixture()));
     assert.equal(second.days[0].meals[0].stations[0].items[0].name, 'trusted cached parse');
+  });
+
+  it('reparses pages cached under an older parser version so featured is published', async () => {
+    const first = await refreshBonAppetit('collins', [DATE], undefined, async () => response(fixture()));
+    const stale = structuredClone(first.state) as SourceState & { version: number };
+    stale.version = 3;
+    const pages = stale.pages as Record<string, { day: { meals: Array<{ stations: Array<{ items: Array<{ featured?: boolean; name: string }> }> }> } }>;
+    for (const meal of pages[DATE].day.meals) {
+      for (const station of meal.stations) {
+        for (const item of station.items) {
+          item.name = 'stale cached item';
+          delete item.featured;
+        }
+      }
+    }
+    const second = await refreshBonAppetit('collins', [DATE], stale, async () => response(fixture()));
+    assert.notEqual(second.days[0].meals[0].stations[0].items[0].name, 'stale cached item');
+    assert.equal(second.days[0].meals[0].stations[0].items[0].featured, true);
+  });
+
+  it('reparses pages cached under an older parser version so period is published', async () => {
+    const first = await refreshBonAppetit('collins', [DATE], undefined, async () => response(fixture()));
+    const stale = structuredClone(first.state) as SourceState & { version: number };
+    stale.version = 4;
+    const pages = stale.pages as Record<string, { day: { meals: Array<{ name: string; period?: string }> } }>;
+    for (const meal of pages[DATE].day.meals) delete meal.period;
+    const second = await refreshBonAppetit('collins', [DATE], stale, async () => response(fixture()));
+    assert.equal(second.days[0].meals[0].period, 'breakfast');
+  });
+
+  it('reparses pages cached under an older parser version so diet flags are published', async () => {
+    const first = await refreshBonAppetit('collins', [DATE], undefined, async () => response(fixture()));
+    const stale = structuredClone(first.state) as SourceState & { version: number };
+    stale.version = 5;
+    const pages = stale.pages as Record<string, { day: { meals: Array<{ stations: Array<{ items: Array<{ glutenFree?: boolean; mindful?: boolean }> }> }> } }>;
+    for (const meal of pages[DATE].day.meals) {
+      for (const station of meal.stations) {
+        for (const item of station.items) {
+          delete item.glutenFree;
+          delete item.mindful;
+        }
+      }
+    }
+    const second = await refreshBonAppetit('collins', [DATE], stale, async () => response(fixture()));
+    assert.equal(second.days[0].meals[0].stations[0].items[0].glutenFree, true);
+    assert.equal(second.days[0].meals[0].stations[1].items[0].mindful, true);
   });
 
   it('ignores malformed state and does not send its validator', async () => {

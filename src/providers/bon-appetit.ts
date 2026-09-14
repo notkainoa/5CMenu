@@ -12,10 +12,10 @@ import type {
 } from '../types';
 import { boundedText } from './response';
 import { validTime } from '../dates';
-import { withMealPeriod } from '../periods';
+import { MEAL_PERIODS, withMealPeriod } from '../periods';
 import { refineBonAppetitMeals, type CatalogItem } from './bon-appetit-catalog';
 
-const STATE_VERSION = 3;
+const STATE_VERSION = 6;
 const PROVIDER = 'bon-appetit';
 
 const CAFES = {
@@ -64,12 +64,14 @@ function validMenuItem(value: unknown): value is MenuItem {
     (value.description === undefined || typeof value.description === 'string') &&
     (value.vegan === undefined || typeof value.vegan === 'boolean') &&
     (value.vegetarian === undefined || typeof value.vegetarian === 'boolean') &&
+    (value.featured === undefined || typeof value.featured === 'boolean') &&
     (value.calories === undefined || typeof value.calories === 'number' && Number.isFinite(value.calories) && value.calories >= 0);
 }
 
 function validDay(value: unknown, date: string): value is ParsedDay {
   if (!isRecord(value) || value.date !== date || !['ok', 'closed'].includes(String(value.status)) || !Array.isArray(value.meals)) return false;
   const mealsAreValid = value.meals.every(meal => isRecord(meal) && typeof meal.name === 'string' && meal.name.trim().length > 0 &&
+    (meal.period === undefined || typeof meal.period === 'string' && (MEAL_PERIODS as readonly string[]).includes(meal.period)) &&
     (meal.startTime === undefined || validTime(meal.startTime)) &&
     (meal.endTime === undefined || validTime(meal.endTime)) &&
     Array.isArray(meal.stations) && meal.stations.every(station => isRecord(station) && typeof station.name === 'string' && station.name.trim().length > 0 &&
@@ -200,7 +202,7 @@ function applyBonAppetitIcons(item: CatalogItem, labels: Set<string>): void {
   if ([...labels].some(label => /\bmindful\b/.test(label))) item.mindful = true;
   for (const label of labels) {
     if (
-      label === 'gluten free' || label === 'gluten-free' || label === 'gluten friendly' ||
+      label === 'gluten free' || label === 'gluten-free' || label === 'gluten friendly' || label === 'gluten-friendly' ||
       label.includes('made without gluten-containing ingredients') ||
       label.includes('made without gluten containing ingredients')
     ) {
