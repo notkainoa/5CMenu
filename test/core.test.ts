@@ -177,3 +177,8 @@ test('stored meals accept known period tokens and reject unknown labels', () => 
   assert.equal(validMeals([{ name: 'Snack', stations: [{ name: 'Main', items: [{ name: 'Pasta' }] }] }]), true);
   assert.equal(validMeals([{ name: 'DINNER', period: 'DINNER', stations: [{ name: 'Main', items: [{ name: 'Pasta' }] }] }]), false);
 });
+
+test('stored items accept explicit diet no values and reject non-boolean diet flags', () => {
+  assert.equal(validMeals([{ name: 'Lunch', stations: [{ name: 'Main', items: [{ name: 'Pasta', glutenFree: false, plantBased: true }] }] }]), true);
+  assert.equal(validMeals([{ name: 'Lunch', stations: [{ name: 'Main', items: [{ name: 'Pasta', glutenFree: 'yes' }] }] }]), false);
+});

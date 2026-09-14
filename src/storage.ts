@@ -1,5 +1,6 @@
 import { HALLS, type Meal, type Snapshot, type SnapshotStore } from './types';
 import { isValidDate, validTime } from './dates';
+import { DIET_FLAGS } from './diet';
 import { MEAL_PERIODS } from './periods';
 
 export const SNAPSHOT_KEY = 'snapshot:v1';
@@ -17,7 +18,7 @@ export function validMeals(value: unknown): value is Meal[] {
       Array.isArray(station.items) && station.items.length <= 2000 && station.items.every(item =>
         isRecord(item) && typeof item.name === 'string' && item.name.trim().length > 0 && item.name.length <= 2000 &&
         (item.description === undefined || typeof item.description === 'string') &&
-        [item.vegan, item.vegetarian, item.featured].every(flag => flag === undefined || typeof flag === 'boolean') &&
+        [item.featured, ...DIET_FLAGS.map(flag => item[flag])].every(flag => flag === undefined || typeof flag === 'boolean') &&
         (item.calories === undefined || typeof item.calories === 'number' && Number.isFinite(item.calories) && item.calories >= 0))));
 }
 function timestamp(value: unknown): boolean {

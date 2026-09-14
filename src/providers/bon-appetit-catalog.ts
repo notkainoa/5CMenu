@@ -1,4 +1,5 @@
 import type { Meal, MenuItem, Station } from '../types';
+import { copyDietFlags } from '../diet';
 import { mealPeriod, withMealPeriod } from '../periods';
 
 export interface CatalogItem extends MenuItem {
@@ -273,8 +274,7 @@ function publicItem(item: CatalogItem): MenuItem | undefined {
   if (description === undefined) description = descriptionFromIngredients(name, item.ingredients);
   const published: MenuItem = { name };
   if (description) published.description = description;
-  if (item.vegan) published.vegan = true;
-  if (item.vegetarian) published.vegetarian = true;
+  copyDietFlags(item, published);
   const featured = featuredFlag(item);
   if (featured !== undefined) published.featured = featured;
   if (item.calories !== undefined) published.calories = item.calories;

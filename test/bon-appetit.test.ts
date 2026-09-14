@@ -10,7 +10,12 @@ function fixture(date = DATE, itemSuffix = ''): string {
   const items = {
     '101': {
       label: 'tofu &amp; greens', description: 'Ginger <br> sauce', special: 1,
-      cor_icon: { '4': 'Vegan' }, nutrition_details: { calories: { value: '240' } },
+      cor_icon: {
+        '4': 'Vegan',
+        '8': 'Made without Gluten-Containing Ingredients',
+        '9': 'Farm to Fork',
+        '10': 'Wheat/Gluten',
+      }, nutrition_details: { calories: { value: '240' } },
     },
     '102': {
       label: 'mac &amp; cheese', description: '', special: 0,
@@ -18,7 +23,7 @@ function fixture(date = DATE, itemSuffix = ''): string {
     },
     '103': {
       label: `chef&#039;s choice${itemSuffix}`, description: 'No nutrition published',
-      ordered_cor_icon: { first: { label: 'Vegetarian' } }, nutrition: { kcal: '180' },
+      ordered_cor_icon: { first: { label: 'Vegetarian' }, second: { label: 'Halal' }, third: { label: 'Mindful' } }, nutrition: { kcal: '180' },
     },
   };
   return `<!doctype html><html><body>
@@ -81,18 +86,19 @@ describe('parseBonAppetitPage', () => {
         {
           name: 'Breakfast', period: 'breakfast', startTime: '07:30', endTime: '09:00', stations: [
             { name: "Chef's Table & Grill", items: [
-              { name: 'tofu & greens', description: 'Ginger sauce', vegan: true, featured: true, calories: 240 },
+              { name: 'tofu & greens', description: 'Ginger sauce', vegan: true, glutenFree: true, featured: true, calories: 240 },
             ] },
-            { name: 'Pantry', items: [{ name: "chef's choice", description: 'No nutrition published', vegetarian: true, calories: 180 }] },
+            { name: 'Pantry', items: [{ name: "chef's choice", description: 'No nutrition published', vegetarian: true, halal: true, mindful: true, calories: 180 }] },
           ],
         },
         {
           name: 'Lunch', period: 'lunch', startTime: '11:00', endTime: '13:00',
-          stations: [{ name: 'Global', items: [{ name: 'tofu & greens', description: 'Ginger sauce', vegan: true, featured: true, calories: 240 }] }],
+          stations: [{ name: 'Global', items: [{ name: 'tofu & greens', description: 'Ginger sauce', vegan: true, glutenFree: true, featured: true, calories: 240 }] }],
         },
       ],
     });
     assert.equal(day?.meals[0].stations[0].items[0].vegetarian, undefined);
+    assert.equal(day?.meals[0].stations[0].items[0].mindful, undefined);
     assert.equal(day?.meals[0].stations[1].items[0].calories, 180);
     assert.equal(day?.meals[0].stations[1].items[0].featured, undefined);
   });
@@ -105,6 +111,17 @@ describe('parseBonAppetitPage', () => {
     const html = `<section class="site-panel--daypart" data-jump-nav-title="Closed"><div class="site-panel__daypart-container" data-end-date="${DATE}"><h2 class="site-panel__daypart-panel-title">Closed</h2></div></section>`;
     assert.deepEqual(parseBonAppetitPage(html, DATE), { date: DATE, status: 'closed', meals: [] });
     assert.equal(parseBonAppetitPage(html, TOMORROW), null);
+  });
+
+  it('treats a Gluten-Friendly icon as glutenFree', () => {
+    const html = `<script>Bamco.menu_items = {"201":{"label":"quinoa bowl","cor_icon":{"1":"Gluten-Friendly"}}};</script>
+      <section class="site-panel--daypart" data-jump-nav-title="Lunch">
+        <div class="site-panel__daypart-container" data-end-date="${DATE}">
+          <h3 class="site-panel__daypart-station-title">Main</h3>
+          <div class="site-panel__daypart-item" data-id="201"></div>
+        </div>
+      </section>`;
+    assert.equal(parseBonAppetitPage(html, DATE)?.meals[0].stations[0].items[0].glutenFree, true);
   });
 
   it('rejects dated but unexplained empty or inconsistent menu markup', () => {
@@ -192,6 +209,24 @@ describe('refreshBonAppetit', () => {
     for (const meal of pages[DATE].day.meals) delete meal.period;
     const second = await refreshBonAppetit('collins', [DATE], stale, async () => response(fixture()));
     assert.equal(second.days[0].meals[0].period, 'breakfast');
+  });
+
+  it('reparses pages cached under an older parser version so diet flags are published', async () => {
+    const first = await refreshBonAppetit('collins', [DATE], undefined, async () => response(fixture()));
+    const stale = structuredClone(first.state) as SourceState & { version: number };
+    stale.version = 5;
+    const pages = stale.pages as Record<string, { day: { meals: Array<{ stations: Array<{ items: Array<{ glutenFree?: boolean; mindful?: boolean }> }> }> } }>;
+    for (const meal of pages[DATE].day.meals) {
+      for (const station of meal.stations) {
+        for (const item of station.items) {
+          delete item.glutenFree;
+          delete item.mindful;
+        }
+      }
+    }
+    const second = await refreshBonAppetit('collins', [DATE], stale, async () => response(fixture()));
+    assert.equal(second.days[0].meals[0].stations[0].items[0].glutenFree, true);
+    assert.equal(second.days[0].meals[0].stations[1].items[0].mindful, true);
   });
 
   it('ignores malformed state and does not send its validator', async () => {

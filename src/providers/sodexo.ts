@@ -6,7 +6,7 @@ const API_URL = 'https://api-prd.sodexomyway.net/v0.2/data/menu/13147001/15258';
 const API_KEY = '68717828-b754-420d-9488-4c37cb7d7ef7';
 const MAX_BYTES = 2 * 1024 * 1024;
 const TIMEOUT_MS = 15_000;
-const STATE_VERSION = 1;
+const STATE_VERSION = 2;
 
 type JsonRecord = Record<string, unknown>;
 interface CachedDate { hash: string; day?: ParsedDay }
@@ -57,6 +57,9 @@ function parseItem(value: unknown): MenuItem {
   if (description) item.description = decodeEntities(description);
   if (typeof value.isVegan === 'boolean') item.vegan = value.isVegan;
   if (typeof value.isVegetarian === 'boolean') item.vegetarian = value.isVegetarian;
+  if (typeof value.isPlantBased === 'boolean') item.plantBased = value.isPlantBased;
+  if (typeof value.isMindful === 'boolean') item.mindful = value.isMindful;
+  if (typeof value.isGlutenFree === 'boolean') item.glutenFree = value.isGlutenFree;
   const calories = parseCalories(value.calories);
   if (calories !== undefined) item.calories = calories;
   return item;
