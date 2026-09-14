@@ -214,16 +214,18 @@ class PomonaGoogleParser {
 
                     $dayType = strtolower(date("D", $mealTime));
 
-                    list($startHour, $startMinute, $endHour, $endMinute) = PomonaParser::getHoursForMeal($hoursInfo, $dayType, $x);
+                    $mealHours = PomonaParser::getHoursForMeal($hoursInfo, $dayType, $x);
+                    if(is_array($mealHours) && count($mealHours) >= 4){
+                        list($startHour, $startMinute, $endHour, $endMinute) = $mealHours;
+                        $startTime = PomonaGoogleParser::makeTime($year, $month, $day, $startHour, $startMinute);
+                        $endTime = PomonaGoogleParser::makeTime($year, $month, $day, $endHour, $endMinute);
 
-                    $startTime = PomonaGoogleParser::makeTime($year, $month, $day, $startHour, $startMinute);
-                    $endTime = PomonaGoogleParser::makeTime($year, $month, $day, $endHour, $endMinute);
-
-                    if($startHour == 0 && $startMinute == 0 && $endTime == 0 && $endMinute == 0){
-                        $arr["meals"][$x]["friendlyHours"] = "";
+                        if($startHour == 0 && $startMinute == 0 && $endTime == 0 && $endMinute == 0){
+                            $arr["meals"][$x]["friendlyHours"] = "";
+                        }
+                        $arr["meals"][$x]["startTime"] = $startTime;
+                        $arr["meals"][$x]["endTime"] = $endTime;
                     }
-                    $arr["meals"][$x]["startTime"] = $startTime;
-                    $arr["meals"][$x]["endTime"] = $endTime;
 
                     $stationsCurrent = $arr["meals"][$x]["stations"];
                     usort($stationsCurrent, function ($item1, $item2) {

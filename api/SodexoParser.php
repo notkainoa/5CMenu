@@ -109,6 +109,10 @@ class SodexoParser implements DiningHallParser{
         $contents = function_exists("menuWindowFileGetContents")
             ? menuWindowFileGetContents($this->url)
             : file_get_contents($this->url);
+        if(!is_string($contents) || strlen($contents) < 1){
+            $this->info = array("menu" => array());
+            return;
+        }
         //print_r($contents);
         //$raw = preg_replace("#^(.+?)$#is", "$1", $contents);
         //echo $raw;
@@ -119,6 +123,10 @@ class SodexoParser implements DiningHallParser{
         $raw = preg_replace("#^(.+)\\<\\/div>.*$#s", "$1", $raw);
         //print_r($raw);
         $this->json = $json = json_decode($raw, true);
+        if(!is_array($json)){
+            $this->info = array("menu" => array());
+            return;
+        }
 
         $info = array();
         for($i = 0; $i < count($json); $i++){
