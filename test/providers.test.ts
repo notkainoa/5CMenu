@@ -26,7 +26,7 @@ test('Sodexo reads exact dates and preserves known item fields', async () => {
   assert.equal(calls.length, 2);
   assert.match(calls[1], /date=2026-09-07$/);
   assert.deepEqual(result.days[0], {
-    date: '2026-09-06', status: 'ok', meals: [{ name: 'LUNCH', stations: [{
+    date: '2026-09-06', status: 'ok', meals: [{ name: 'LUNCH', period: 'lunch', stations: [{
       name: 'CHEF & CORNER', items: [{ name: 'Rice & Beans', description: 'With vegetables', vegan: true, vegetarian: true, calories: 320 }],
     }] }],
   });
@@ -68,6 +68,10 @@ test('Pomona groups records into meals and stations without dropping recipes', a
   const response = new Response(pomonaJsonp(menu), { headers: { 'content-type': 'application/json', etag: '"abc"', 'last-modified': 'Sun, 06 Sep 2026 19:00:00 GMT' } });
   const result = await refreshPomona('frank', ['2026-09-06'], undefined, async () => response);
   assert.equal(result.days[0].meals.length, 2);
+  assert.equal(result.days[0].meals[0].name, 'Lunch');
+  assert.equal(result.days[0].meals[0].period, 'lunch');
+  assert.equal(result.days[0].meals[1].name, 'Dinner');
+  assert.equal(result.days[0].meals[1].period, 'dinner');
   assert.equal(result.days[0].meals[0].stations[0].items.length, 2);
   assert.deepEqual(result.days[0].meals[0].stations[0].items[0], {
     name: 'Vegetable Curry', description: 'With rice', vegetarian: true, vegan: false, calories: 245.5,
@@ -168,6 +172,15 @@ test('Pomona closed records do not hide other published meals on that date', asy
   const result = await refreshPomona('frank', ['2026-09-06'], undefined, async () => new Response(pomonaJsonp(menu), { headers: { 'content-type': 'application/json' } }));
   assert.equal(result.days[0].status, 'ok');
   assert.equal(result.days[0].meals[0].name, 'Lunch');
+  assert.equal(result.days[0].meals[0].period, 'lunch');
+});
+
+test('Sodexo keeps unknown meal names and omits period', async () => {
+  const result = await refreshSodexo('hoch', ['2026-09-06'], undefined, async () => jsonResponse([{
+    name: 'Snack Window',
+    groups: [{ name: 'Main', items: [{ formalName: 'Rice' }] }],
+  }]));
+  assert.deepEqual(result.days[0].meals[0], { name: 'Snack Window', stations: [{ name: 'Main', items: [{ name: 'Rice' }] }] });
 });
 
 test('Sodexo date failures preserve other dates and never invent whitespace calories', async () => {

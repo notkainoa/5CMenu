@@ -1,5 +1,6 @@
 import { HALLS, type Meal, type Snapshot, type SnapshotStore } from './types';
 import { isValidDate, validTime } from './dates';
+import { MEAL_PERIODS } from './periods';
 
 export const SNAPSHOT_KEY = 'snapshot:v1';
 export function isRecord(value: unknown): value is Record<string, unknown> {
@@ -9,6 +10,7 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
 export function validMeals(value: unknown): value is Meal[] {
   return Array.isArray(value) && value.length <= 30 && value.every(meal =>
     isRecord(meal) && typeof meal.name === 'string' && meal.name.trim().length > 0 &&
+    (meal.period === undefined || typeof meal.period === 'string' && (MEAL_PERIODS as readonly string[]).includes(meal.period)) &&
     [meal.startTime, meal.endTime].every(time => time === undefined || validTime(time)) &&
     Array.isArray(meal.stations) && meal.stations.length <= 200 && meal.stations.every(station =>
       isRecord(station) && typeof station.name === 'string' && station.name.trim().length > 0 &&

@@ -171,3 +171,9 @@ test('stored items accept featured true or false and reject non-boolean featured
   assert.equal(validMeals([{ name: 'Lunch', stations: [{ name: 'Main', items: [{ name: 'Pasta', featured: true }] }] }]), true);
   assert.equal(validMeals([{ name: 'Lunch', stations: [{ name: 'Main', items: [{ name: 'Pasta', featured: 1 }] }] }]), false);
 });
+
+test('stored meals accept known period tokens and reject unknown labels', () => {
+  assert.equal(validMeals([{ name: 'DINNER', period: 'dinner', stations: [{ name: 'Main', items: [{ name: 'Pasta' }] }] }]), true);
+  assert.equal(validMeals([{ name: 'Snack', stations: [{ name: 'Main', items: [{ name: 'Pasta' }] }] }]), true);
+  assert.equal(validMeals([{ name: 'DINNER', period: 'DINNER', stations: [{ name: 'Main', items: [{ name: 'Pasta' }] }] }]), false);
+});

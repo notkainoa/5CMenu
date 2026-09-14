@@ -79,7 +79,7 @@ describe('parseBonAppetitPage', () => {
       status: 'ok',
       meals: [
         {
-          name: 'Breakfast', startTime: '07:30', endTime: '09:00', stations: [
+          name: 'Breakfast', period: 'breakfast', startTime: '07:30', endTime: '09:00', stations: [
             { name: "Chef's Table & Grill", items: [
               { name: 'tofu & greens', description: 'Ginger sauce', vegan: true, featured: true, calories: 240 },
             ] },
@@ -87,7 +87,7 @@ describe('parseBonAppetitPage', () => {
           ],
         },
         {
-          name: 'Lunch', startTime: '11:00', endTime: '13:00',
+          name: 'Lunch', period: 'lunch', startTime: '11:00', endTime: '13:00',
           stations: [{ name: 'Global', items: [{ name: 'tofu & greens', description: 'Ginger sauce', vegan: true, featured: true, calories: 240 }] }],
         },
       ],

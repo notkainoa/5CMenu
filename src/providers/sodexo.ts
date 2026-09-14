@@ -1,4 +1,5 @@
 import type { ApiError, MenuItem, ParsedDay, RefreshHall, SourceState } from '../types';
+import { withMealPeriod } from '../periods';
 
 const API_URL = 'https://api-prd.sodexomyway.net/v0.2/data/menu/13147001/15258';
 // This is the public browser key shipped by hmc.sodexomyway.com.
@@ -73,7 +74,7 @@ function parseDay(value: unknown, date: string): ParsedDay | undefined {
       }
       return { name: decodeEntities(groupValue.name.trim()), items: groupValue.items.map(parseItem) };
     });
-    return { name: decodeEntities(mealValue.name.trim()), stations };
+    return withMealPeriod({ name: decodeEntities(mealValue.name.trim()), stations });
   });
 
   const itemCount = meals.reduce((sum, meal) => sum + meal.stations.reduce((stationSum, station) => stationSum + station.items.length, 0), 0);

@@ -12,6 +12,7 @@ import type {
 } from '../types';
 import { boundedText } from './response';
 import { validTime } from '../dates';
+import { withMealPeriod } from '../periods';
 import { refineBonAppetitMeals, type CatalogItem } from './bon-appetit-catalog';
 
 const STATE_VERSION = 3;
@@ -243,7 +244,7 @@ function mealFromSection(section: { attributes: string; body: string }, items: J
   }
   if (containerAttributes === undefined) throw new Error('Bon Appétit daypart lacks its dated container');
 
-  const meal: Meal = { name, stations: [] };
+  const meal: Meal = withMealPeriod({ name, stations: [] });
   const startTime = attribute(containerAttributes, 'data-start-time');
   const endTime = attribute(containerAttributes, 'data-end-time');
   if (startTime && validTime(startTime)) meal.startTime = startTime;

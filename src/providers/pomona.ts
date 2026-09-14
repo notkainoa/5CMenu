@@ -1,5 +1,6 @@
 import type { Meal, MenuItem, ParsedDay, RefreshHall, SourceState, Station } from '../types';
 import { isValidDate } from '../dates';
+import { withMealPeriod } from '../periods';
 
 const FEEDS = {
   frank: 'https://api.pomona.edu/eatec/Frank.json',
@@ -111,7 +112,7 @@ function parseFeed(text: string): ParsedDay[] {
   return Array.from(byDate, ([date, day]): ParsedDay => {
     // A closed meal record must not erase other published meals on the same day.
     if (day.closed && day.meals.size === 0) return { date, status: 'closed', meals: [] };
-    const meals: Meal[] = Array.from(day.meals, ([name, stationMap]) => ({
+    const meals: Meal[] = Array.from(day.meals, ([name, stationMap]) => withMealPeriod({
       name,
       stations: Array.from(stationMap, ([stationName, items]): Station => ({ name: stationName, items })),
     }));

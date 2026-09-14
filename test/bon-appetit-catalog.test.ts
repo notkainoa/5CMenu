@@ -224,6 +224,19 @@ describe('refineBonAppetitMeals', () => {
     assert.deepEqual(meals, []);
   });
 
+  it('keeps beverages at late night and hides them at dinner', () => {
+    const dinner = refineBonAppetitMeals([
+      { name: 'Dinner', stations: [{ name: 'Beverages', items: [item('soda', { special: 1 })] }] },
+    ]);
+    const late = refineBonAppetitMeals([
+      { name: 'Late Night', stations: [{ name: 'Beverages', items: [item('soda', { special: 1 })] }] },
+    ]);
+    assert.deepEqual(dinner, []);
+    assert.equal(late[0].period, 'late_night');
+    assert.equal(late[0].name, 'Late Night');
+    assert.equal(late[0].stations[0].name, 'Beverages');
+  });
+
   it('publishes featured true, false, and omits the field when the school did not say', () => {
     const meals = refineBonAppetitMeals([
       {
