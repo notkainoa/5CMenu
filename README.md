@@ -41,6 +41,7 @@ Individual response example, with illustrative food:
   "menuUpdatedAt": "2026-09-06T16:00:00.000Z",
   "meals": [{
     "name": "Lunch",
+    "period": "lunch",
     "startTime": "11:00",
     "endTime": "13:00",
     "stations": [{ "name": "Main", "items": [{ "name": "Vegetable curry", "vegan": true, "featured": true }] }]
@@ -68,7 +69,7 @@ Failures include `error: { "code": "...", "message": "..." }`. Menu codes are `S
 
 Timestamps use UTC ISO 8601 strings or `null` when unknown. Data becomes stale after 90 minutes without a successful check, with up to 60 seconds of additional response caching. A stale empty array can represent a previously verified closure. No successful menu from another service date is used as fallback.
 
-Optional item fields are `description`, `vegan`, `vegetarian`, `featured`, and `calories`. Missing information stays absent. `featured` is `true` when a school marked the dish as today's special, `false` when it marked the dish as always-on, and omitted when the school did not say. Only Collins, Malott, and McConnell currently send that signal. Hoch and Pomona items omit the key; clients must not treat a missing `featured` field as non-featured. Meal `startTime` and `endTime`, when supplied, are local `HH:mm` times in California. Pomona and Hoch currently omit times because their integrated menu feeds do not provide verified meal hours. Menus and dietary labels are reported as supplied by the schools.
+Optional item fields are `description`, `vegan`, `vegetarian`, `featured`, and `calories`. Missing information stays absent. `featured` is `true` when a school marked the dish as today's special, `false` when it marked the dish as always-on, and omitted when the school did not say. Only Collins, Malott, and McConnell currently send that signal. Hoch and Pomona items omit the key; clients must not treat a missing `featured` field as non-featured. Meal `name` is the school's display label. `period` is an optional normalized token: `breakfast`, `brunch`, `lunch`, `dinner`, or `late_night`. It is omitted when the name matches none of those. `DINNER` and `Dinner` both become `period: "dinner"`; `Continental Breakfast` becomes `breakfast`. Meal `startTime` and `endTime`, when supplied, are local `HH:mm` times in California. Pomona and Hoch currently omit times because their integrated menu feeds do not provide verified meal hours. Menus and dietary labels are reported as supplied by the schools.
 
 Collins dated special hours override matching meal times. When those hours list brunch, the collector omits regular breakfast, continental breakfast, and lunch sections unless the special schedule also explicitly lists them. A dinner-only exception does not remove other meals. This handles holiday brunch pages that retain regular weekday menu sections; it is not a general operating-hours integration for every hall.
 

@@ -79,7 +79,7 @@ describe('parseBonAppetitPage', () => {
       status: 'ok',
       meals: [
         {
-          name: 'Breakfast', startTime: '07:30', endTime: '09:00', stations: [
+          name: 'Breakfast', period: 'breakfast', startTime: '07:30', endTime: '09:00', stations: [
             { name: "Chef's Table & Grill", items: [
               { name: 'tofu & greens', description: 'Ginger sauce', vegan: true, featured: true, calories: 240 },
             ] },
@@ -87,7 +87,7 @@ describe('parseBonAppetitPage', () => {
           ],
         },
         {
-          name: 'Lunch', startTime: '11:00', endTime: '13:00',
+          name: 'Lunch', period: 'lunch', startTime: '11:00', endTime: '13:00',
           stations: [{ name: 'Global', items: [{ name: 'tofu & greens', description: 'Ginger sauce', vegan: true, featured: true, calories: 240 }] }],
         },
       ],
@@ -182,6 +182,16 @@ describe('refreshBonAppetit', () => {
     const second = await refreshBonAppetit('collins', [DATE], stale, async () => response(fixture()));
     assert.notEqual(second.days[0].meals[0].stations[0].items[0].name, 'stale cached item');
     assert.equal(second.days[0].meals[0].stations[0].items[0].featured, true);
+  });
+
+  it('reparses pages cached under an older parser version so period is published', async () => {
+    const first = await refreshBonAppetit('collins', [DATE], undefined, async () => response(fixture()));
+    const stale = structuredClone(first.state) as SourceState & { version: number };
+    stale.version = 4;
+    const pages = stale.pages as Record<string, { day: { meals: Array<{ name: string; period?: string }> } }>;
+    for (const meal of pages[DATE].day.meals) delete meal.period;
+    const second = await refreshBonAppetit('collins', [DATE], stale, async () => response(fixture()));
+    assert.equal(second.days[0].meals[0].period, 'breakfast');
   });
 
   it('ignores malformed state and does not send its validator', async () => {

@@ -1,15 +1,18 @@
 import type { ApiError, MenuItem, ParsedDay, RefreshHall, SourceState } from '../types';
+import { withMealPeriod } from '../periods';
 
 const API_URL = 'https://api-prd.sodexomyway.net/v0.2/data/menu/13147001/15258';
 // This is the public browser key shipped by hmc.sodexomyway.com.
 const API_KEY = '68717828-b754-420d-9488-4c37cb7d7ef7';
 const MAX_BYTES = 2 * 1024 * 1024;
 const TIMEOUT_MS = 15_000;
+const STATE_VERSION = 1;
 
 type JsonRecord = Record<string, unknown>;
 interface CachedDate { hash: string; day?: ParsedDay }
 interface SodexoState extends SourceState {
   provider: 'sodexo';
+  version: typeof STATE_VERSION;
   dates: Record<string, CachedDate>;
 }
 
@@ -73,7 +76,7 @@ function parseDay(value: unknown, date: string): ParsedDay | undefined {
       }
       return { name: decodeEntities(groupValue.name.trim()), items: groupValue.items.map(parseItem) };
     });
-    return { name: decodeEntities(mealValue.name.trim()), stations };
+    return withMealPeriod({ name: decodeEntities(mealValue.name.trim()), stations });
   });
 
   const itemCount = meals.reduce((sum, meal) => sum + meal.stations.reduce((stationSum, station) => stationSum + station.items.length, 0), 0);
@@ -113,7 +116,7 @@ async function boundedText(response: Response): Promise<string> {
 }
 
 function previousState(value: SourceState | undefined): SodexoState | undefined {
-  if (!isRecord(value) || value.provider !== 'sodexo' || !isRecord(value.dates)) return undefined;
+  if (!isRecord(value) || value.provider !== 'sodexo' || value.version !== STATE_VERSION || !isRecord(value.dates)) return undefined;
   return value as SodexoState;
 }
 
@@ -156,7 +159,7 @@ export const refreshSodexo: RefreshHall = async (hall, dates, previous, fetcher)
   }
   return {
     days: dates.flatMap(date => successfulDates.has(date) && entries[date]?.day ? [entries[date].day!] : []),
-    state: { provider: 'sodexo', dates: entries },
+    state: { provider: 'sodexo', version: STATE_VERSION, dates: entries },
     ...(Object.keys(errors).length > 0 ? { errors } : {}),
   };
 };

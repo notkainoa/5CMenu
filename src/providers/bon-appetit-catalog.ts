@@ -1,4 +1,5 @@
 import type { Meal, MenuItem, Station } from '../types';
+import { mealPeriod, withMealPeriod } from '../periods';
 
 export interface CatalogItem extends MenuItem {
   special?: unknown;
@@ -58,18 +59,12 @@ function canonicalStationName(name: string): string {
 }
 
 function mealKey(name: string): string {
-  const fixed = name.toLowerCase().trim();
-  if (fixed.includes('late') && fixed.includes('night')) return 'late night';
-  if (fixed.includes('brunch')) return 'brunch';
-  if (fixed.includes('breakfast')) return 'breakfast';
-  if (fixed.includes('lunch')) return 'lunch';
-  if (fixed.includes('dinner')) return 'dinner';
-  return fixed;
+  return mealPeriod(name) ?? name.toLowerCase().trim();
 }
 
 function shouldHideStation(canonical: string, meal: string): boolean {
   if (HIDDEN_STATIONS.has(canonical)) {
-    return !(canonical === 'beverage' || canonical === 'beverages') || meal !== 'late night';
+    return !(canonical === 'beverage' || canonical === 'beverages') || meal !== 'late_night';
   }
   if (/^chef's table\s*:/.test(canonical)) return true;
   return canonical === 'breakfast' && meal !== 'breakfast' && meal !== 'brunch';
@@ -348,7 +343,7 @@ export function refineBonAppetitMeals(meals: Array<Meal & { stations: CatalogSta
       .map(station => refineStation(station, key))
       .filter((station): station is Station => station !== undefined);
     if (stations.length < 1) continue;
-    refined.push({ ...meal, stations });
+    refined.push(withMealPeriod({ ...meal, stations }));
   }
   return refined;
 }

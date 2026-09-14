@@ -1,3 +1,5 @@
+import type { MealPeriod } from './periods';
+
 export const HALLS = [
   { id: 'hoch', name: 'Hoch-Shanahan', college: 'Harvey Mudd', sourceUrl: 'https://hmc.sodexomyway.com/en-us/locations/hoch-shanahan-dining-commons' },
   { id: 'malott', name: 'Malott', college: 'Scripps', sourceUrl: 'https://scripps.cafebonappetit.com/' },
@@ -8,6 +10,7 @@ export const HALLS = [
   { id: 'oldenborg', name: 'Oldenborg', college: 'Pomona', sourceUrl: 'https://www.pomona.edu/administration/dining/menus/oldenborg' },
 ] as const;
 export type HallId = typeof HALLS[number]['id'];
+export type { MealPeriod };
 export interface MenuItem {
   name: string;
   description?: string;
@@ -17,7 +20,13 @@ export interface MenuItem {
   calories?: number;
 }
 export interface Station { name: string; items: MenuItem[]; }
-export interface Meal { name: string; startTime?: string; endTime?: string; stations: Station[]; }
+export interface Meal {
+  name: string;
+  period?: MealPeriod;
+  startTime?: string;
+  endTime?: string;
+  stations: Station[];
+}
 export interface ParsedDay { date: string; status: 'ok' | 'closed'; meals: Meal[]; }
 export interface ApiError { code: string; message: string; }
 export interface HallMenu {

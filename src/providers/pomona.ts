@@ -1,5 +1,6 @@
 import type { Meal, MenuItem, ParsedDay, RefreshHall, SourceState, Station } from '../types';
 import { isValidDate } from '../dates';
+import { withMealPeriod } from '../periods';
 
 const FEEDS = {
   frank: 'https://api.pomona.edu/eatec/Frank.json',
@@ -8,10 +9,12 @@ const FEEDS = {
 } as const;
 const MAX_BYTES = 2 * 1024 * 1024;
 const TIMEOUT_MS = 15_000;
+const STATE_VERSION = 1;
 
 type JsonRecord = Record<string, unknown>;
 interface PomonaState extends SourceState {
   provider: 'pomona';
+  version: typeof STATE_VERSION;
   etag?: string;
   lastModified?: string;
   hash: string;
@@ -111,7 +114,7 @@ function parseFeed(text: string): ParsedDay[] {
   return Array.from(byDate, ([date, day]): ParsedDay => {
     // A closed meal record must not erase other published meals on the same day.
     if (day.closed && day.meals.size === 0) return { date, status: 'closed', meals: [] };
-    const meals: Meal[] = Array.from(day.meals, ([name, stationMap]) => ({
+    const meals: Meal[] = Array.from(day.meals, ([name, stationMap]) => withMealPeriod({
       name,
       stations: Array.from(stationMap, ([stationName, items]): Station => ({ name: stationName, items })),
     }));
@@ -153,7 +156,7 @@ async function boundedText(response: Response): Promise<string> {
 }
 
 function oldState(value: SourceState | undefined): PomonaState | undefined {
-  if (!isRecord(value) || value.provider !== 'pomona' || typeof value.hash !== 'string' || !Array.isArray(value.days)) return undefined;
+  if (!isRecord(value) || value.provider !== 'pomona' || value.version !== STATE_VERSION || typeof value.hash !== 'string' || !Array.isArray(value.days)) return undefined;
   return value as unknown as PomonaState;
 }
 
@@ -189,6 +192,7 @@ export const refreshPomona: RefreshHall = async (hall, dates, previous, fetcher)
     const allDays = prior?.hash === hash ? prior.days : parseFeed(text);
     const state: PomonaState = {
       provider: 'pomona',
+      version: STATE_VERSION,
       hash,
       days: allDays,
       ...(response.headers.get('etag') ? { etag: response.headers.get('etag')! } : {}),

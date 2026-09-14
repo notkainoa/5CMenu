@@ -12,9 +12,10 @@ import type {
 } from '../types';
 import { boundedText } from './response';
 import { validTime } from '../dates';
+import { MEAL_PERIODS, withMealPeriod } from '../periods';
 import { refineBonAppetitMeals, type CatalogItem } from './bon-appetit-catalog';
 
-const STATE_VERSION = 4;
+const STATE_VERSION = 5;
 const PROVIDER = 'bon-appetit';
 
 const CAFES = {
@@ -70,6 +71,7 @@ function validMenuItem(value: unknown): value is MenuItem {
 function validDay(value: unknown, date: string): value is ParsedDay {
   if (!isRecord(value) || value.date !== date || !['ok', 'closed'].includes(String(value.status)) || !Array.isArray(value.meals)) return false;
   const mealsAreValid = value.meals.every(meal => isRecord(meal) && typeof meal.name === 'string' && meal.name.trim().length > 0 &&
+    (meal.period === undefined || typeof meal.period === 'string' && (MEAL_PERIODS as readonly string[]).includes(meal.period)) &&
     (meal.startTime === undefined || validTime(meal.startTime)) &&
     (meal.endTime === undefined || validTime(meal.endTime)) &&
     Array.isArray(meal.stations) && meal.stations.every(station => isRecord(station) && typeof station.name === 'string' && station.name.trim().length > 0 &&
@@ -244,7 +246,7 @@ function mealFromSection(section: { attributes: string; body: string }, items: J
   }
   if (containerAttributes === undefined) throw new Error('Bon Appétit daypart lacks its dated container');
 
-  const meal: Meal = { name, stations: [] };
+  const meal: Meal = withMealPeriod({ name, stations: [] });
   const startTime = attribute(containerAttributes, 'data-start-time');
   const endTime = attribute(containerAttributes, 'data-end-time');
   if (startTime && validTime(startTime)) meal.startTime = startTime;
