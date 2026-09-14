@@ -83,6 +83,12 @@ function isAlwaysOn(item: CatalogItem): boolean {
   return item.special === false || item.special === 0 || item.special === '0';
 }
 
+function featuredFlag(item: CatalogItem): boolean | undefined {
+  if (isFeatured(item)) return true;
+  if (isAlwaysOn(item)) return false;
+  return undefined;
+}
+
 function keepJuiceSpecials(canonical: string, items: CatalogItem[]): CatalogItem[] {
   if (!JUICE_STATIONS.has(canonical)) return items;
   const featured = items.filter(isFeatured);
@@ -274,6 +280,8 @@ function publicItem(item: CatalogItem): MenuItem | undefined {
   if (description) published.description = description;
   if (item.vegan) published.vegan = true;
   if (item.vegetarian) published.vegetarian = true;
+  const featured = featuredFlag(item);
+  if (featured !== undefined) published.featured = featured;
   if (item.calories !== undefined) published.calories = item.calories;
   return published;
 }

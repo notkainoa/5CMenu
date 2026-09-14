@@ -14,7 +14,7 @@ import { boundedText } from './response';
 import { validTime } from '../dates';
 import { refineBonAppetitMeals, type CatalogItem } from './bon-appetit-catalog';
 
-const STATE_VERSION = 3;
+const STATE_VERSION = 4;
 const PROVIDER = 'bon-appetit';
 
 const CAFES = {
@@ -63,6 +63,7 @@ function validMenuItem(value: unknown): value is MenuItem {
     (value.description === undefined || typeof value.description === 'string') &&
     (value.vegan === undefined || typeof value.vegan === 'boolean') &&
     (value.vegetarian === undefined || typeof value.vegetarian === 'boolean') &&
+    (value.featured === undefined || typeof value.featured === 'boolean') &&
     (value.calories === undefined || typeof value.calories === 'number' && Number.isFinite(value.calories) && value.calories >= 0);
 }
 

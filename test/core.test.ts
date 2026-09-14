@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { californiaDate, isValidDate, supportedDates } from '../src/dates';
 import { menuFor } from '../src/menus';
 import { refreshMenus } from '../src/refresh';
-import { readSnapshot } from '../src/storage';
+import { readSnapshot, validMeals } from '../src/storage';
 import { HALLS, type ParsedDay, type RefreshHall, type SnapshotStore } from '../src/types';
 
 class MemoryStore implements SnapshotStore {
@@ -163,4 +163,11 @@ test('stored snapshots reject invalid meal times and closed menus that still lis
   closed.menus['2026-09-06'].collins.meals = [{ name: 'Lunch', stations: [{ name: 'Main', items: [{ name: 'Pasta' }] }] }];
   closedStore.value = JSON.stringify(closed);
   await assert.rejects(readSnapshot(closedStore), /Invalid stored menu/);
+});
+
+test('stored items accept featured true or false and reject non-boolean featured', () => {
+  const meals = [{ name: 'Lunch', stations: [{ name: 'Main', items: [{ name: 'Pasta', featured: false }] }] }];
+  assert.equal(validMeals(meals), true);
+  assert.equal(validMeals([{ name: 'Lunch', stations: [{ name: 'Main', items: [{ name: 'Pasta', featured: true }] }] }]), true);
+  assert.equal(validMeals([{ name: 'Lunch', stations: [{ name: 'Main', items: [{ name: 'Pasta', featured: 1 }] }] }]), false);
 });

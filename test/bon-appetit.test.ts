@@ -81,19 +81,20 @@ describe('parseBonAppetitPage', () => {
         {
           name: 'Breakfast', startTime: '07:30', endTime: '09:00', stations: [
             { name: "Chef's Table & Grill", items: [
-              { name: 'tofu & greens', description: 'Ginger sauce', vegan: true, calories: 240 },
+              { name: 'tofu & greens', description: 'Ginger sauce', vegan: true, featured: true, calories: 240 },
             ] },
             { name: 'Pantry', items: [{ name: "chef's choice", description: 'No nutrition published', vegetarian: true, calories: 180 }] },
           ],
         },
         {
           name: 'Lunch', startTime: '11:00', endTime: '13:00',
-          stations: [{ name: 'Global', items: [{ name: 'tofu & greens', description: 'Ginger sauce', vegan: true, calories: 240 }] }],
+          stations: [{ name: 'Global', items: [{ name: 'tofu & greens', description: 'Ginger sauce', vegan: true, featured: true, calories: 240 }] }],
         },
       ],
     });
     assert.equal(day?.meals[0].stations[0].items[0].vegetarian, undefined);
     assert.equal(day?.meals[0].stations[1].items[0].calories, 180);
+    assert.equal(day?.meals[0].stations[1].items[0].featured, undefined);
   });
 
   it('does not substitute sections belonging to another date', () => {
@@ -163,6 +164,24 @@ describe('refreshBonAppetit', () => {
     pages[DATE].day.meals[0].stations[0].items[0].name = 'trusted cached parse';
     const second = await refreshBonAppetit('mcconnell', [DATE], cached, async () => response(fixture()));
     assert.equal(second.days[0].meals[0].stations[0].items[0].name, 'trusted cached parse');
+  });
+
+  it('reparses pages cached under an older parser version so featured is published', async () => {
+    const first = await refreshBonAppetit('collins', [DATE], undefined, async () => response(fixture()));
+    const stale = structuredClone(first.state) as SourceState & { version: number };
+    stale.version = 3;
+    const pages = stale.pages as Record<string, { day: { meals: Array<{ stations: Array<{ items: Array<{ featured?: boolean; name: string }> }> }> } }>;
+    for (const meal of pages[DATE].day.meals) {
+      for (const station of meal.stations) {
+        for (const item of station.items) {
+          item.name = 'stale cached item';
+          delete item.featured;
+        }
+      }
+    }
+    const second = await refreshBonAppetit('collins', [DATE], stale, async () => response(fixture()));
+    assert.notEqual(second.days[0].meals[0].stations[0].items[0].name, 'stale cached item');
+    assert.equal(second.days[0].meals[0].stations[0].items[0].featured, true);
   });
 
   it('ignores malformed state and does not send its validator', async () => {

@@ -15,7 +15,7 @@ export function validMeals(value: unknown): value is Meal[] {
       Array.isArray(station.items) && station.items.length <= 2000 && station.items.every(item =>
         isRecord(item) && typeof item.name === 'string' && item.name.trim().length > 0 && item.name.length <= 2000 &&
         (item.description === undefined || typeof item.description === 'string') &&
-        [item.vegan, item.vegetarian].every(flag => flag === undefined || typeof flag === 'boolean') &&
+        [item.vegan, item.vegetarian, item.featured].every(flag => flag === undefined || typeof flag === 'boolean') &&
         (item.calories === undefined || typeof item.calories === 'number' && Number.isFinite(item.calories) && item.calories >= 0))));
 }
 function timestamp(value: unknown): boolean {

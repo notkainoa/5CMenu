@@ -8,7 +8,14 @@ export const HALLS = [
   { id: 'oldenborg', name: 'Oldenborg', college: 'Pomona', sourceUrl: 'https://www.pomona.edu/administration/dining/menus/oldenborg' },
 ] as const;
 export type HallId = typeof HALLS[number]['id'];
-export interface MenuItem { name: string; description?: string; vegan?: boolean; vegetarian?: boolean; calories?: number; }
+export interface MenuItem {
+  name: string;
+  description?: string;
+  vegan?: boolean;
+  vegetarian?: boolean;
+  featured?: boolean;
+  calories?: number;
+}
 export interface Station { name: string; items: MenuItem[]; }
 export interface Meal { name: string; startTime?: string; endTime?: string; stations: Station[]; }
 export interface ParsedDay { date: string; status: 'ok' | 'closed'; meals: Meal[]; }
