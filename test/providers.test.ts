@@ -53,6 +53,16 @@ test('Sodexo reuses parsed results when the downloaded body is unchanged', async
   assert.deepEqual(second, first);
 });
 
+test('Sodexo reparses cached dates after a parser version bump so period is published', async () => {
+  const body = [{ name: 'DINNER', groups: [{ name: 'Grill', items: [{ formalName: 'Tacos' }] }] }];
+  const first = await refreshSodexo('hoch', ['2026-09-06'], undefined, async () => jsonResponse(body));
+  const stale = structuredClone(first.state) as { provider: string; dates: Record<string, { hash: string; day: { meals: Array<{ period?: string }> } }> };
+  delete (stale as { version?: number }).version;
+  delete stale.dates['2026-09-06'].day.meals[0].period;
+  const second = await refreshSodexo('hoch', ['2026-09-06'], stale, async () => jsonResponse(body));
+  assert.equal(second.days[0].meals[0].period, 'dinner');
+});
+
 test('Sodexo treats an empty date as unpublished and rejects malformed data', async () => {
   const missing = await refreshSodexo('hoch', ['2026-09-06'], undefined, async () => jsonResponse([]));
   assert.deepEqual(missing.days, []);
@@ -118,6 +128,20 @@ test('Pomona conditional requests reuse verified parsed state on 304', async () 
   assert.equal(checkedHeaders?.get('if-none-match'), '"same"');
   assert.equal(checkedHeaders?.get('if-modified-since'), 'Sun, 06 Sep 2026 19:00:00 GMT');
   assert.deepEqual(second, first);
+});
+
+test('Pomona reparses cached feeds after a parser version bump so period is published', async () => {
+  const menu = { '@servedate': '20260906', '@mealperiodname': 'Lunch', '@menubulletin': '', recipes: { recipe } };
+  const first = await refreshPomona('frary', ['2026-09-06'], undefined, async () => new Response(pomonaJsonp(menu), {
+    headers: { 'content-type': 'application/json', etag: '"same"' },
+  }));
+  const stale = structuredClone(first.state) as { provider: string; hash: string; days: Array<{ meals: Array<{ period?: string }> }> };
+  delete (stale as { version?: number }).version;
+  delete stale.days[0].meals[0].period;
+  const second = await refreshPomona('frary', ['2026-09-06'], stale, async () => new Response(pomonaJsonp(menu), {
+    headers: { 'content-type': 'application/json' },
+  }));
+  assert.equal(second.days[0].meals[0].period, 'lunch');
 });
 
 test('Pomona refetches when a 304 cache covers only part of the requested window', async () => {

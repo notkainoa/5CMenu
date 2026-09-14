@@ -9,10 +9,12 @@ const FEEDS = {
 } as const;
 const MAX_BYTES = 2 * 1024 * 1024;
 const TIMEOUT_MS = 15_000;
+const STATE_VERSION = 1;
 
 type JsonRecord = Record<string, unknown>;
 interface PomonaState extends SourceState {
   provider: 'pomona';
+  version: typeof STATE_VERSION;
   etag?: string;
   lastModified?: string;
   hash: string;
@@ -168,7 +170,7 @@ async function boundedText(response: Response): Promise<string> {
 }
 
 function oldState(value: SourceState | undefined): PomonaState | undefined {
-  if (!isRecord(value) || value.provider !== 'pomona' || typeof value.hash !== 'string' || !Array.isArray(value.days)) return undefined;
+  if (!isRecord(value) || value.provider !== 'pomona' || value.version !== STATE_VERSION || typeof value.hash !== 'string' || !Array.isArray(value.days)) return undefined;
   return value as unknown as PomonaState;
 }
 
@@ -204,6 +206,7 @@ export const refreshPomona: RefreshHall = async (hall, dates, previous, fetcher)
     const allDays = prior?.hash === hash ? prior.days : parseFeed(text);
     const state: PomonaState = {
       provider: 'pomona',
+      version: STATE_VERSION,
       hash,
       days: allDays,
       ...(response.headers.get('etag') ? { etag: response.headers.get('etag')! } : {}),
