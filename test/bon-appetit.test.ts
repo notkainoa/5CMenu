@@ -81,19 +81,20 @@ describe('parseBonAppetitPage', () => {
         {
           name: 'Breakfast', startTime: '07:30', endTime: '09:00', stations: [
             { name: "Chef's Table & Grill", items: [
-              { name: 'tofu & greens', description: 'Ginger sauce', vegan: true, calories: 240 },
+              { name: 'tofu & greens', description: 'Ginger sauce', vegan: true, featured: true, calories: 240 },
             ] },
             { name: 'Pantry', items: [{ name: "chef's choice", description: 'No nutrition published', vegetarian: true, calories: 180 }] },
           ],
         },
         {
           name: 'Lunch', startTime: '11:00', endTime: '13:00',
-          stations: [{ name: 'Global', items: [{ name: 'tofu & greens', description: 'Ginger sauce', vegan: true, calories: 240 }] }],
+          stations: [{ name: 'Global', items: [{ name: 'tofu & greens', description: 'Ginger sauce', vegan: true, featured: true, calories: 240 }] }],
         },
       ],
     });
     assert.equal(day?.meals[0].stations[0].items[0].vegetarian, undefined);
     assert.equal(day?.meals[0].stations[1].items[0].calories, 180);
+    assert.equal(day?.meals[0].stations[1].items[0].featured, undefined);
   });
 
   it('does not substitute sections belonging to another date', () => {

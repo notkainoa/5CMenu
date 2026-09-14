@@ -45,6 +45,11 @@ describe('refineBonAppetitMeals', () => {
       ['Breakfast', ['scrambled eggs']],
       ['Ovens', ['house-made scones', 'pepperoni pizza']],
     ]);
+    assert.deepEqual(meals[0].stations[0].items, [{ name: 'scrambled eggs', featured: false }]);
+    assert.deepEqual(meals[0].stations[1].items, [
+      { name: 'house-made scones', featured: false },
+      { name: 'pepperoni pizza', featured: false },
+    ]);
   });
 
   it('drops always-on grill condiments after merging a second grill station', () => {
@@ -217,5 +222,22 @@ describe('refineBonAppetitMeals', () => {
       { name: 'Dinner', stations: [{ name: 'Breakfast', items: [item('peas', { special: 0 })] }] },
     ]);
     assert.deepEqual(meals, []);
+  });
+
+  it('publishes featured true, false, and omits the field when the school did not say', () => {
+    const meals = refineBonAppetitMeals([
+      {
+        name: 'Lunch',
+        stations: [
+          { name: 'Grill', items: [item('smash burger', { special: 1 }), item('onion', { special: 0 })] },
+          { name: 'Sweets', items: [item('lemon bars', { special: 0 })] },
+          { name: 'Global', items: [item('chef\'s choice')] },
+        ],
+      },
+    ]);
+    const byName = Object.fromEntries(meals[0].stations.map(station => [station.name, station.items]));
+    assert.deepEqual(byName.Grill, [{ name: 'smash burger', featured: true }]);
+    assert.deepEqual(byName.Sweets, [{ name: 'lemon bars', featured: false }]);
+    assert.deepEqual(byName.Global, [{ name: "chef's choice" }]);
   });
 });
