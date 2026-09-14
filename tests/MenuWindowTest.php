@@ -50,13 +50,16 @@ assertSameValue(1, menuWindowFetchTimeoutSeconds(0), "a zero-time remaining slic
 assertSameValue(1, menuWindowFetchTimeoutSeconds(-4), "a negative remaining slice should still clamp to a one-second timeout");
 assertSameValue(11, menuWindowFetchTimeoutSeconds(11.9), "a remaining slice should floor to a whole-second fetch timeout that does not exceed the deadline");
 assertSameValue($budget, menuWindowFetchTimeoutSeconds($budget + 10), "a fetch timeout should never exceed the overall budget");
-$GLOBALS["MENU_WINDOW_FETCH_DEADLINE"] = microtime(true) + 12.4;
-assertSameValue(12, currentMenuFetchTimeoutSeconds(), "nested fetches should compute timeout from the remaining deadline");
+$deadline = microtime(true) + 12.4;
+$GLOBALS["MENU_WINDOW_FETCH_DEADLINE"] = $deadline;
+$remaining = $deadline - microtime(true);
+$expectedTimeout = $remaining < 1 ? 0 : menuWindowFetchTimeoutSeconds($remaining);
+assertSameValue($expectedTimeout, currentMenuFetchTimeoutSeconds(), "nested fetches should compute timeout from the remaining deadline");
 $GLOBALS["MENU_WINDOW_FETCH_DEADLINE"] = microtime(true) + 0.4;
 assertSameValue(0, currentMenuFetchTimeoutSeconds(), "nested fetches should stop when less than one second remains");
 $GLOBALS["MENU_WINDOW_FETCH_DEADLINE"] = microtime(true) - 1;
 assertSameValue(0, currentMenuFetchTimeoutSeconds(), "nested fetches should stop once the deadline has passed");
-assertSameValue(false, menuWindowFileGetContents("https://example.invalid"), "stream fetches should skip once the deadline has passed");
+assertSameValue(false, menuWindowFileGetContents("data://text/plain,ok"), "stream fetches should skip once the deadline has passed");
 unset($GLOBALS["MENU_WINDOW_FETCH_DEADLINE"]);
 
 fwrite(STDOUT, "PASS: menu window checks\n");
